@@ -1,0 +1,211 @@
+body {
+    font-family: 'Roboto', sans-serif;
+    background-color: #aebbcf;
+}
+
+#mainpane {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    max-width: 75vh;
+    max-height: 100vh;
+    background-color: #aebbcf;
+}
+
+.controlpane {
+    border: 0.5vh groove gray;
+    border-radius: 1vh;
+}
+
+#titlepane {
+    position: absolute;
+    top: 2vh;
+    left: 4%;
+    height: 4vh;
+    width: 90%;
+    background-color: navy;
+    text-align: center;
+    font-family: 'Cabin', sans-serif;
+    font-size: 2.5vh;
+    line-height: 4vh;
+    color: white;
+    border: 0.5vh solid navy;
+    border-radius: 1vh;
+}
+
+#seltargetpane {
+    position: absolute;
+    top: 8vh;
+    left: 4%;
+    height: 15vh;
+    width: 90%;
+    background-color: #cedde2;
+}
+
+#selectiondiv {
+    position: absolute;
+    top: 0vh;
+    left: 0%;
+    width: 66%;
+}
+
+#selectiontitlediv {
+    position: absolute;
+    top: 0vh;
+    left: 0%;
+    font-size: 2vh;
+    padding: 1vh;
+}
+
+#selectionboxdiv {
+    position: absolute;
+    top: 3vh;
+    width: 100%;
+    margin: 1vh;
+}
+
+#targetdiv {
+    position: absolute;
+    top: 0vh;
+    left: 72%;
+    width: 24%;
+}
+
+#targettitlediv {
+    position: absolute;
+    top: 0vh;
+    left: 0%;
+    font-size: 2vh;
+    padding: 1vh;
+}
+
+#targetboxdiv {
+    position: absolute;
+    top: 3vh;
+    margin: 1vh;
+}
+
+input.inputbox {
+    position: relative;
+    font-size: 3vh;
+    height: 7vh;
+    text-align: center;
+    border: 1vh gray groove;
+    border-radius: 2vh;
+    background-color: blue;
+    color: white;
+    font-family: 'Roboto', sans-serif;
+    width: 100%;
+    padding: 0;
+    touch-action: manipulation;
+}
+
+#outputpane {
+    position: absolute;
+    top: 25vh;
+    height: 19vh;
+    left: 4%;
+    width: 90%;
+    background-color: #cedde2;
+}
+
+#answerdiv {
+    padding: 1vh;
+    font-size: 3vh;
+}
+
+span.inexactanswer {
+    color: #882200;
+    font-weight: bold;
+}
+
+span.exactanswer {
+    color: #008800;
+    font-weight: bold;
+}
+
+div.answersummary {
+    clear: both;
+    margin: 1vh;
+    font-size: 4vh;
+}
+
+div.answermethod {
+    margin: 1vh;
+    clear: both;
+    font-size: 3vh;
+}
+
+div.answerprogress {
+    font-size: 2.5vh;
+    color: #444444;
+}
+
+#keyboardpane {
+    position: absolute;
+    top: 46vh;
+    left: 4%;
+    height: 30vh;
+    width: 90%;
+    background-color: #cedde2;
+}
+
+div.keyboardrow {
+    position: absolute;
+    font-size: 0;
+    white-space: nowrap;
+    position: relative;
+    padding: 0.5vh;
+    width: 100%;
+    touch-action: manipulation;
+}
+
+button.inputkey {
+    white-space: nowrap;
+    overflow: hidden;
+    background-color: blue;
+    color: white;
+    font-size: 3.5vh;
+    line-height: 3.5vh;
+    width: 18.5%;
+    margin-left: 0.5%;
+    margin-right: 0.5%;
+    padding: 0;
+    height: 9vh;
+    text-align: center;
+    border: 0.5vh groove gray;
+    border-radius: 1vh;
+    font-family: 'Roboto', sans-serif;
+    touch-action: manipulation;
+}
+
+button.largenumkey {
+    background-color: #0000bb;
+}
+
+#buttonbackspace {
+    background-color: #cc0000;
+}
+
+#buttonpane {
+    position: absolute;
+    top: 78vh;
+    left: 4%;
+    height: 10vh;
+    width: 90%;
+}
+
+#mainbutton {
+    position: absolute;
+    font-family: 'Roboto', sans-serif;
+    width: 100%;
+    height: 10vh;
+    font-size: 5vh;
+    background-color: navy;
+    color: white;
+    border: none;
+    border-radius: 1vh;
+    touch-action: manipulation;
+}
+

@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>Numbers solver</title>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <link rel="stylesheet" type="text/css" href="solver.css" />
+        <link href="https://fonts.googleapis.com/css?family=Cabin%7CRoboto:400,700&display=swap" rel="stylesheet">
+    </head>
+    <body onload="initState();">
+        <script src="solver_engine.js"></script>
+        <script src="solver_interface.js"></script>
+
+        <div id="mainpane">
+            <div id="titlepane">Countdown Numbers Solver</div> 
+
+            <div id="seltargetpane" class="controlpane">
+                <div id="selectiondiv">
+                    <div id="selectiontitlediv">Selection</div>
+                    <div id="selectionboxdiv">
+                        <input class="inputbox selectionbox" onchange="changedSelection();" onfocus="onFocusSelectionBox();" type="text" pattern="[0-9 ]*" name="selection" id="selection" />
+                    </div>
+                </div>
+                <div id="targetdiv">
+                    <div id="targettitlediv">Target</div>
+                    <div id="targetboxdiv">
+                        <input class="inputbox targetbox" oninput="changedTarget();" onfocus="onFocusTargetBox();" type="number" name="target" id="target" />
+                    </div>
+                </div>
+            </div>
+            
+            <div id="outputpane" class="controlpane">
+                <div id="answerdiv"></div>
+            </div>
+
+            <div id="keyboardpane" class="controlpane">
+                <div class="keyboardrow">
+                    <button class="inputkey" id="button1" onclick="buttonPress(1)">1</button>
+                    <button class="inputkey" id="button2" onclick="buttonPress(2)">2</button>
+                    <button class="inputkey" id="button3" onclick="buttonPress(3)">3</button>
+                    <button class="inputkey" id="button10" onclick="buttonPress(10)">10</button>
+                    <button class="inputkey" id="buttonbackspace" title="Backspace" onclick="buttonPress(-1)">&#x232b;</button>
+                </div>
+                <div class="keyboardrow">
+                    <button class="inputkey" id="button4" onclick="buttonPress(4)">4</button>
+                    <button class="inputkey" id="button5" onclick="buttonPress(5)">5</button>
+                    <button class="inputkey" id="button6" onclick="buttonPress(6)">6</button>
+                    <button class="inputkey largenumkey" id="button25" onclick="buttonPress(25)">25</button>
+                    <button class="inputkey largenumkey" id="button50" onclick="buttonPress(50)">50</button>
+                </div>
+                <div class="keyboardrow">
+                    <button class="inputkey" id="button7" onclick="buttonPress(7)">7</button>
+                    <button class="inputkey" id="button8" onclick="buttonPress(8)">8</button>
+                    <button class="inputkey" id="button9" onclick="buttonPress(9)">9</button>
+                    <button class="inputkey largenumkey" id="button75" onclick="buttonPress(75)">75</button>
+                    <button class="inputkey largenumkey" id="button100" onclick="buttonPress(100)">100</button>
+                </div>
+            </div>
+
+            <div id="buttonpane" class="controlpane">
+                <button id="mainbutton" type="submit" onclick="mainButtonPress();">Next</button>
+            </div>
+        </div>
+    </body>
+</html>
