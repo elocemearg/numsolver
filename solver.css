@@ -23,7 +23,7 @@ body {
     top: 2vh;
     left: 4%;
     height: 4vh;
-    width: 90%;
+    width: 70%;
     background-color: navy;
     text-align: center;
     font-family: 'Cabin', sans-serif;
@@ -31,6 +31,30 @@ body {
     line-height: 4vh;
     color: white;
     border: 0.5vh solid navy;
+    border-radius: 1vh;
+}
+
+#optionsbuttonpane {
+    position: absolute;
+    top: 2vh;
+    right: 5%;
+    width: 18%;
+}
+
+button.optionsbutton {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 5vh;
+    padding: 0;
+    touch-action: manipulation;
+    background-color: navy;
+    text-align: center;
+    font-size: 4vh;
+    line-height: 4vh;
+    color: white;
+    border: 0.5vh outset blue;
     border-radius: 1vh;
 }
 
@@ -108,11 +132,15 @@ input.inputbox {
     left: 4%;
     width: 90%;
     background-color: #cedde2;
+    overflow-y: scroll;
 }
 
 #answerdiv {
+    position: absolute;
     padding: 1vh;
-    font-size: 3vh;
+    height: 17vh;
+    width: 96%;
+    font-size: 2.5vh;
 }
 
 span.inexactanswer {
@@ -128,18 +156,34 @@ span.exactanswer {
 div.answersummary {
     clear: both;
     margin: 1vh;
+    margin-top: 2vh;
     font-size: 4vh;
 }
 
 div.answermethod {
-    margin: 1vh;
     clear: both;
+    margin: 1vh;
     font-size: 3vh;
 }
 
 div.answerprogress {
     font-size: 2.5vh;
     color: #444444;
+}
+
+div.answerfurthersolutions {
+    position: absolute;
+    top: 15vh;
+    right: 3%;
+    font-size: 2.5vh;
+    text-align: right;
+    color: #444444;
+}
+
+a.morelink {
+    color: blue;
+    cursor: pointer;
+    touch-action: manipulation;
 }
 
 #keyboardpane {
@@ -196,7 +240,7 @@ button.largenumkey {
     width: 90%;
 }
 
-#mainbutton {
+button.mainbutton {
     position: absolute;
     font-family: 'Roboto', sans-serif;
     width: 100%;
@@ -209,3 +253,119 @@ button.largenumkey {
     touch-action: manipulation;
 }
 
+
+
+#optionswindow {
+    position: absolute;
+    background-color: white;
+    width: 92%;
+    top: 8vh;
+    left: 4%;
+    height: 80vh;
+    z-index: 1;
+    font-size: 2.5vh;
+    border-radius: 1vh;
+    display: none;
+}
+
+div.windowmainscroll {
+    position: absolute;
+    max-height: 60vh;
+    width: 100%;
+    overflow-y: scroll;
+}
+
+div.optionstitle {
+    position: relative;
+    padding: 2vh;
+    font-size: 3vh;
+    border-bottom: 1px solid gray;
+    font-family: "Cabin", sans-serif;
+}
+
+div.optionscontrol {
+    position: relative;
+    padding: 2vh;
+    margin-top: 0.5vh;
+    margin-bottom: 0.5vh;
+    border-bottom: 1px solid gray;
+}
+
+div.optionscontroltitle {
+    margin-bottom: 1.5vh;
+    font-family: "Cabin", sans-serif;
+}
+
+div.optionscontrol input {
+    touch-action: manipulation;
+    float: left;
+}
+
+div.optionscontrol label {
+    position: absolute;
+    left: 6vh;
+    display: block;
+    line-height: 5vh;
+    min-height: 5vh;
+    padding-left: 1vh;
+    padding-right: 1vh;
+    float: left;
+    touch-action: manipulation;
+}
+
+div.optionscontrolradio {
+    position: relative;
+    min-height: 6vh;
+    font-size: 1.8vh;
+}
+
+div.optionscontrolradio input {
+    height: 5vh;
+    width: 5vh;
+}
+
+div.optionstextlink {
+    position: relative;
+    width: 100%;
+    min-height: 7vh;
+    line-height: 7vh;
+    cursor: pointer;
+    font-family: "Cabin", sans-serif;
+}
+
+div.optionsdone {
+    position: absolute;
+    top: 90%;
+    height: 10%;
+    width: 100%;
+}
+
+#aboutwindow {
+    position: absolute;
+    display: none;
+    z-index: 2;
+    background-color: white;
+    width: 92%;
+    top: 8vh;
+    left: 4%;
+    height: 80vh;
+    border-radius: 1vh;
+}
+
+#abouttext {
+    position: absolute;
+    padding: 4vh;
+    max-height: 60vh;
+    max-width: 100%;
+    overflow-y: scroll;
+    font-size: 2vh;
+}
+
+h1, h2, h3 {
+    font-family: "Cabin", sans-serif;
+    font-weight: normal;
+}
+
+#abouttext p {
+    font-size: 2vh;
+}

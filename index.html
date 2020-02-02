@@ -10,8 +10,101 @@
         <script src="solver_engine.js"></script>
         <script src="solver_interface.js"></script>
 
+        <noscript>
+            You don't have JavaScript enabled. This isn't going to go well for you.
+        </noscript>
+
         <div id="mainpane">
-            <div id="titlepane">Countdown Numbers Solver</div> 
+            <div id="titlepane">Numbers Game Solver</div> 
+            <div id="optionsbuttonpane">
+                <button id="optionsbutton" title="Options" class="optionsbutton" onclick="showOptionsScreen();">&#x2699;</button>
+            </div>
+
+            <div id="optionswindow">
+                <div class="optionstitle">Spanners and hammers</div>
+                <div class="windowmainscroll">
+                    <div class="optionscontrol">
+                        <div class="optionscontroltitle">Solving strategy</div>
+                        <div class="optionscontrolradio">
+                            <input type="radio" name="solvestrategy" id="solvestrategyfast" value="fast" checked /><label for="solvestrategyfast">Fast: find one solution</label>
+                        </div>
+                        <div class="optionscontrolradio">
+                            <input type="radio" name="solvestrategy" id="solvestrategyall" value="all" /><label for="solvestrategyall">Full: find all distinct solutions (slower)</label>
+                        </div>
+                    </div>
+                    <div class="optionscontrol">
+                        <div class="optionscontroltitle">Annoying pop-ups</div>
+                        <div class="optionscontrolradio">
+                            <input type="radio" name="popups" id="popupsdisabled" value="disabled" checked /><label for="popupsdisabled">Disabled</label>
+                        </div>
+                        <div class="optionscontrolradio">
+                            <input type="radio" name="popups" id="popupsoff" value="off" /><label for="popupsoff">Off</label>
+                        </div>
+                    </div>
+                    <div class="optionscontrol">
+                        <div class="optionstextlink" onclick="showAboutScreen();">About</div>
+                    </div>
+                </div>
+
+                <div class="optionsdone">
+                    <button id="optionsdone" class="mainbutton" type="submit" onclick="hideOptionsScreen();">Done</button>
+                </div>
+            </div>
+
+            <div id="aboutwindow">
+                <div id="abouttext">
+                    <h1>About</h1>
+                    <p>
+                    This solver was written by Graeme Cole and is released
+                    under a <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank">Creative Commons Attribution Licence</a>.
+                    </p>
+                    <p>
+                    It solves numbers puzzles according to the rules of the TV
+                    show Countdown. It is not affiliated with or endorsed by
+                    Countdown or anyone connected with the show.
+                    </p>
+                    <p>
+                    It's designed for mobile devices, specifically
+                    touchscreens in portrait orientation. If you think it seems
+                    a bit clunky when used on a desktop, that's why.
+                    </p>
+                    <h1>Technical information</h1>
+                    <p>
+                    In <span style="font-weight: bold;">fast</span> mode,
+                    the solver will aggressively
+                    discard expressions it considers redundant. In this mode,
+                    an expression is redundant if another expression has
+                    already been calculated which comes to the same total and
+                    which uses the same set, or a subset, of the starting
+                    numbers. In fast mode, the solver stops as soon as it
+                    finds an exact solution or determines that no exact
+                    solution is available.
+                    </p>
+                    <p>
+                    In <span style="font-weight: bold;">full</span> mode,
+                    the solver will only consider
+                    expressions to be equivalent if, after some reordering to
+                    put addition and multiplication operations in a standard
+                    order, they do the same operations on the same starting
+                    numbers. The solver will run until it has found all
+                    distinct solutions to the puzzle.
+                    </p>
+                    <p>
+                    In either mode, trivially redundant operations which are
+                    never useful in Countdown are always ignored. These include
+                    multiplying or dividing by 1, or any expression equivalent
+                    to 2x&nbsp;&minus;&nbsp;x or x&sup2;&nbsp;/&nbsp;x.
+                    </p>
+                    <p>
+                    The solver runs entirely in JavaScript in your browser.
+                    When solving, it follows a duty cycle of 450ms on, 50ms
+                    off, so the browser has enough time to update the page.
+                    </p>
+                </div>
+                <div class="optionsdone">
+                    <button id="aboutdone" class="mainbutton" type="submit" onclick="hideAboutScreen();">Close</button>
+                </div>
+            </div>
 
             <div id="seltargetpane" class="controlpane">
                 <div id="selectiondiv">
@@ -57,7 +150,7 @@
             </div>
 
             <div id="buttonpane" class="controlpane">
-                <button id="mainbutton" type="submit" onclick="mainButtonPress();">Next</button>
+                <button id="mainbutton" class="mainbutton" type="submit" onclick="mainButtonPress();">Next</button>
             </div>
         </div>
     </body>

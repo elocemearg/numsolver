@@ -1,73 +1,3 @@
-
-function clearOutput() {
-    var answerDiv = document.getElementById("answerdiv");
-    answerDiv.innerText = "";
-    while (answerDiv.firstChild) {
-        answerDiv.removeChild(answerDiv.firstChild);
-    }
-}
-
-function showSolveResult(expression, target, errorMessage) {
-    var answerDiv = document.getElementById("answerdiv");
-
-    clearOutput();
-
-    if (expression != null) {
-        var answerSummaryDiv = document.createElement("div");
-        answerSummaryDiv.className = "answersummary";
-        var answerSpan = document.createElement("span");
-        if (expression.getValue() != target) {
-            answerSpan.className = "inexactanswer";
-            answerSpan.innerText = expression.getValue().toString() + " (" + Math.abs(target - expression.getValue()).toString() + " away)";
-        }
-        else {
-            answerSpan.className = "exactanswer";
-            answerSpan.innerText = target.toString();
-        }
-
-        var method = document.createElement("div");
-        method.className = "answermethod";
-
-        var expressionText = expression.toString();
-
-        method.innerHTML = expressionText.replace(/\*/g, "&times;").replace(/-/, "&minus;");
-
-        answerSummaryDiv.appendChild(answerSpan);
-        answerDiv.appendChild(answerSummaryDiv);
-        answerDiv.appendChild(method);
-    }
-    else {
-        answerDiv.innerText = errorMessage;
-    }
-
-    uiState = FINISHED;
-    updateControls();
-}
-
-function showSolveProgress(elapsedMs, numExpressions, nearestTotal) {
-    var answerDiv = document.getElementById("answerdiv");
-    var away = Math.abs(nearestTotal - currentTarget);
-    var progressDiv;
-
-    progressDiv = document.getElementById("answerprogress");
-    if (progressDiv == null) {
-        clearOutput();
-        progressDiv = document.createElement("div");
-        progressDiv.className = "answerprogress";
-        progressDiv.id = "answerprogress";
-        answerDiv.appendChild(progressDiv);
-    }
-
-    progressDiv.innerHTML = "Solving, please wait...";
-    if (elapsedMs > 0 || numExpressions > 0) {
-        progressDiv.innerHTML += "<br />" +
-            "Elapsed time: " + elapsedMs.toString() + "ms<br />" +
-            "Expressions: " + numExpressions.toString() + "</br />" +
-            "Best so far: " + nearestTotal.toString() +
-                (nearestTotal < 0 ? "" : (" (" + away.toString() + " away)"));
-    }
-}
-
 /* The states we can be in are as follows:
  *
  * REQUEST_SELECTION
@@ -107,16 +37,209 @@ function showSolveProgress(elapsedMs, numExpressions, nearestTotal) {
  * without changing or clearing anything.
  * If the target input is pressed, we move to the REQUEST_TARGET state without
  * changing or clearing anything.
+ *
+ * SHOWING_ALL
+ * The keyboard pane is invisible and the output pane has grown to fill its
+ * place, because it's now showing a (potentially) long list of solutions.
+ * The selection and target boxes are disabled.
+ * If the main button is pressed (it reads "Done" or something like that)
+ * we go back to the FINISHED state, shrink the output pane again and
+ * make the keyboard visible.
  */
 
 const REQUEST_SELECTION = 0;
 const REQUEST_TARGET = 1;
 const SOLVING = 2;
 const FINISHED = 3;
+const SHOWING_ALL = 4;
 
-var uiState = REQUEST_SELECTION;
+var currentSolutionList = [];
 var currentSelection = [];
 var currentTarget = 0;
+var uiState = REQUEST_SELECTION;
+var showingOptions = false;
+
+
+function clearOutput() {
+    var answerDiv = document.getElementById("answerdiv");
+    answerDiv.innerText = "";
+    while (answerDiv.firstChild) {
+        answerDiv.removeChild(answerDiv.firstChild);
+    }
+}
+
+function addAnswerSummaryDiv(parentDiv, expression, target) {
+    var answerSummaryDiv = document.createElement("div");
+    answerSummaryDiv.className = "answersummary";
+    var answerSpan = document.createElement("span");
+    if (expression.getValue() != target) {
+        answerSpan.className = "inexactanswer";
+        answerSpan.innerText = expression.getValue().toString() + " (" + Math.abs(target - expression.getValue()).toString() + " away)";
+    }
+    else {
+        answerSpan.className = "exactanswer";
+        answerSpan.innerText = target.toString();
+    }
+    answerSummaryDiv.appendChild(answerSpan);
+    parentDiv.appendChild(answerSummaryDiv);
+}
+
+function addMethodDiv(parentDiv, expression) {
+    var methodDiv = document.createElement("div");
+    methodDiv.className = "answermethod";
+
+    var expressionText = expression.toString();
+
+    methodDiv.innerHTML = expressionText.replace(/\*/g, "&times;").replace(/-/g, "&minus;");
+    parentDiv.appendChild(methodDiv);
+}
+
+function showSolveResult(expressionList, target, errorMessage) {
+    var answerDiv = document.getElementById("answerdiv");
+    var expression;
+
+    /* We're only interested in the first expression in the list. If this was
+     * run as a fast solve (the default) then the list will only have one
+     * expression in it anyway. */
+    if (expressionList == null || expressionList.length < 1)
+        expression = null;
+    else
+        expression = expressionList[0];
+
+    clearOutput();
+
+    if (expression != null) {
+        addAnswerSummaryDiv(answerDiv, expression, target);
+        addMethodDiv(answerDiv, expression);
+        currentSolutionList = [ expression ];
+    }
+    else {
+        answerDiv.innerText = errorMessage;
+    }
+
+    var answerFurtherSolutionsDiv = document.createElement("div");
+    answerFurtherSolutionsDiv.className = "answerfurthersolutions";
+    answerFurtherSolutionsDiv.id = "answerfurthersolutions";
+    answerFurtherSolutionsDiv.innerHTML = "<a id=\"showmore\" class=\"morelink\" onclick=\"findAllSolutionsForCurrentPuzzle();\">Search for more solutions</a>";
+    answerDiv.appendChild(answerFurtherSolutionsDiv);
+
+    uiState = FINISHED;
+    updateControls();
+}
+
+function showSolveResultList(expressions, target, errorMessage) {
+    if (expressions == null) {
+        showSolveResult(null, target, errorMessage);
+        currentSolutionList = [];
+    }
+    else if (expressions.length == 0) {
+        showSolveResult(null, target, "No solutions found.");
+        currentSolutionList = [];
+    }
+    else {
+        var away = Math.abs(expressions[0].getValue() - target);
+        var answerDiv = document.getElementById("answerdiv");
+        showSolveResult(expressions, target, errorMessage);
+
+        var answerFurtherSolutionsDiv = document.getElementById("answerfurthersolutions");
+        if (expressions.length < 2) {
+            answerFurtherSolutionsDiv.innerText = "This is the only " + ( away == 0 ? "" : "best ") + "solution.";
+        }
+        else {
+            answerFurtherSolutionsDiv.innerHTML = "<a id=\"showmore\" class=\"morelink\" onclick=\"showMoreSolutions();\">Show all " + expressions.length.toString() + " solutions</a>";
+        }
+        currentSolutionList = expressions;
+    }
+}
+
+function findAllSolutionsForCurrentPuzzle() {
+    /* Run the solver again with the current selection and target, this time
+     * looking for all solutions regardless of what the radio button in the
+     * options page says. */
+    uiState = SOLVING;
+    updateControls();
+    solverRunAllSolutions(currentSelection, currentTarget, showSolveProgress, showSolveResultList);
+}
+
+function showMoreSolutions() {
+    var answerDiv = document.getElementById("answerdiv");
+
+    if (currentSolutionList.length < 2) {
+        return;
+    }
+
+    clearOutput();
+
+    var firstSolution = currentSolutionList[0];
+
+    addAnswerSummaryDiv(answerDiv, firstSolution, currentTarget);
+
+    var solsAdded = 0;
+
+    for (var i = 0; i < currentSolutionList.length; ++i) {
+        var solution = currentSolutionList[i];
+        if (solution.getValue() == firstSolution.getValue()) {
+            addMethodDiv(answerDiv, solution);
+            solsAdded++;
+        }
+    }
+
+    if (firstSolution.getValue() != currentTarget) {
+        /* If the first solution was N away, let's now show all the solutions
+         * for N away the other way */
+        var otherAnswer = currentTarget + (currentTarget - firstSolution.getValue());
+        var foundOne = false;
+
+        for (var i = 0; i < currentSolutionList.length; ++i) {
+            var solution = currentSolutionList[i];
+            if (solution.getValue() == otherAnswer) {
+                if (!foundOne) {
+                    addAnswerSummaryDiv(answerDiv, solution, currentTarget);
+                    foundOne = true;
+                }
+                addMethodDiv(answerDiv, solution);
+            }
+        }
+    }
+
+    uiState = SHOWING_ALL;
+
+    updateControls();
+}
+
+function msToMinsAndSecs(ms) {
+    var str = "";
+    if (ms >= 60000) {
+        str += Math.floor(ms / 60000).toString() + "m ";
+    }
+    str += Math.floor((ms % 60000) / 1000).toString() + "s";
+    return str;
+}
+
+function showSolveProgress(elapsedMs, numExpressions, nearestTotal) {
+    var answerDiv = document.getElementById("answerdiv");
+    var away = Math.abs(nearestTotal - currentTarget);
+    var progressDiv;
+
+    progressDiv = document.getElementById("answerprogress");
+    if (progressDiv == null) {
+        clearOutput();
+        progressDiv = document.createElement("div");
+        progressDiv.className = "answerprogress";
+        progressDiv.id = "answerprogress";
+        answerDiv.appendChild(progressDiv);
+    }
+
+    progressDiv.innerHTML = "Solving, please wait...";
+    if (elapsedMs > 0 || numExpressions > 0) {
+        progressDiv.innerHTML += "<br />" +
+            "Elapsed time: " + msToMinsAndSecs(elapsedMs) + "<br />" +
+            "Expressions: " + numExpressions.toString() + "<br />" +
+            "Best so far: " + nearestTotal.toString() +
+                (nearestTotal < 0 ? "" : (" (" + away.toString() + " away)"));
+    }
+}
+
 
 function setButtonEnabled(button, value) {
     button.disabled = !value;
@@ -136,6 +259,8 @@ function updateControls() {
     var allKeys = document.getElementsByClassName("inputkey");
     var answerDiv = document.getElementById("answerdiv");
     var backspaceButton = document.getElementById("buttonbackspace");
+    var outputPane = document.getElementById("outputpane");
+    var keyboardPane = document.getElementById("keyboardpane");
 
     var selectionString = "";
     for (var i = 0; i < currentSelection.length; ++i) {
@@ -177,6 +302,14 @@ function updateControls() {
         backspaceButton.title = "Backspace";
     }
 
+    if (uiState != SHOWING_ALL) {
+        outputPane.style.height = null;
+        answerDiv.style.height = null;
+        keyboardPane.style.display = null;
+        selectionElement.disabled = false;
+        targetElement.disabled = false;
+    }
+
     if (uiState == REQUEST_SELECTION) {
         mainButton.innerText = "Next";
         if (currentSelection.length >= 2 && currentSelection.length <= SELECTION_MAX) {
@@ -215,6 +348,17 @@ function updateControls() {
         backspaceButton.innerHTML = "C"; // backspace deletes everything
         backspaceButton.title = "Clear";
         setButtonEnabled(mainButton, false);
+    }
+    else if (uiState == SHOWING_ALL) {
+        /* Showing list of solutions, so keyboard pane is gone and answer
+         * pane is tall */
+        outputPane.style.height = "51vh";
+        answerDiv.style.height = "49vh";
+        keyboardPane.style.display = "none";
+        setButtonEnabled(mainButton, true);
+        mainButton.innerText = "Done";
+        selectionElement.disabled = true;
+        targetElement.disabled = true;
     }
 }
 
@@ -285,12 +429,36 @@ function buttonPress(button) {
         uiState = REQUEST_SELECTION;
         clearOutput();
     }
+    else if (uiState == SHOWING_ALL) {
+        if (button < 0) {
+            if (currentSolutionList.length > 0) {
+                showSolveResultList(currentSolutionList, currentTarget, null);
+            }
+            else {
+                uiState = FINISHED;
+                clearOutput();
+            }
+        }
+    }
 
     updateControls();
 
     if (startSolver) {
+        var solveStrategyAll = document.getElementById("solvestrategyall");
+        var solverRunFn;
+        var solverFinishedCallback;
+
+        if (solveStrategyAll.checked) {
+            solverRunFn = solverRunAllSolutions;
+            solverFinishedCallback = showSolveResultList;
+        }
+        else {
+            solverRunFn = solverRun;
+            solverFinishedCallback = showSolveResult;
+        }
+
         window.dispatchEvent(new Event('resize'));
-        solverRun(currentSelection, currentTarget, showSolveProgress, showSolveResult);
+        solverRunFn(currentSelection, currentTarget, showSolveProgress, solverFinishedCallback);
     }
 }
 
@@ -356,4 +524,35 @@ function initState() {
     currentSelection = [];
     currentTarget = 0;
     updateControls();
+}
+
+function showOptionsScreen() {
+    if (showingOptions) {
+        hideOptionsScreen();
+    }
+    else {
+        var mainButton = document.getElementById("mainbutton");
+        var optionsWindow = document.getElementById("optionswindow");
+        optionsWindow.style.display = "block";
+        mainButton.style.display = "none";
+        showingOptions = true;
+    }
+}
+
+function hideOptionsScreen() {
+    var mainButton = document.getElementById("mainbutton");
+    var optionsWindow = document.getElementById("optionswindow");
+    optionsWindow.style.display = "none";
+    mainButton.style.display = null;
+    showingOptions = false;
+}
+
+function showAboutScreen() {
+    var aboutWindow = document.getElementById("aboutwindow");
+    aboutWindow.style.display = "block";
+}
+
+function hideAboutScreen() {
+    var aboutWindow = document.getElementById("aboutwindow");
+    aboutWindow.style.display = "none";
 }

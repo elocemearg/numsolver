@@ -5,23 +5,33 @@ const MINUS = 1;
 const TIMES = 2;
 const DIVIDE = 3;
 const NUMBER = 4;
+
+const PLUS_MINUS = 10;
+const TIMES_DIVIDE = 11;
+
 const operatorSymbols = [ "+", "-", "*", "/", "" ];
 const operatorPrecedence = [ 10, 10, 20, 20, 30 ];
+const operatorTypes = [ PLUS_MINUS, PLUS_MINUS, TIMES_DIVIDE, TIMES_DIVIDE, NUMBER ];
 
 /* The maximum number of numbers allowed in the selection. If you increase
  * this, the worst-case time to find a solution (or determine no exact
  * solution exists) gets bigger by a surprisingly large amount. */
 const SELECTION_MAX = 8;
 
-
 class Expression {
+}
+
+/* In fast solve mode, expressions are either BinaryTreeExpressions or
+ * SingleNumbers. */
+class BinaryTreeExpression extends Expression {
     constructor(leftExp, rightExp, operator) {
+        super();
         this.leftExp = leftExp;
         this.rightExp = rightExp;
         this.operator = operator;
         this.value = null;
         this.selectionMask = null;
-        this.numbersUsed = null;
+        this.countNumbersUsed = null;
     }
 
     getSelectionMask() {
@@ -31,8 +41,8 @@ class Expression {
         return this.selectionMask;
     }
 
-    isCompatible(otherExp) {
-        return (this.getSelectionMask() & otherExp.getSelectionMask()) == 0;
+    isCompatible(otherExp, ignored) {
+        return (this.selectionMask & otherExp.getSelectionMask()) == 0;
     }
 
     getValue() {
@@ -65,11 +75,11 @@ class Expression {
         return operatorPrecedence[this.getOperator()];
     }
 
-    getNumbersUsed() {
-        if (this.numbersUsed == null) {
-            this.numbersUsed = this.leftExp.getNumbersUsed() + this.rightExp.getNumbersUsed();
+    getCountNumbersUsed() {
+        if (this.countNumbersUsed == null) {
+            this.countNumbersUsed = this.leftExp.getCountNumbersUsed() + this.rightExp.getCountNumbersUsed();
         }
-        return this.numbersUsed;
+        return this.countNumbersUsed;
     }
 
     toString() {
@@ -88,13 +98,19 @@ class Expression {
 
         return leftStr + " " + operatorSymbols[this.operator] + " " + rightStr;
     }
+
+    isAtom() {
+        return false;
+    }
 }
 
 class SingleNumber extends Expression {
     constructor(value, selectionMask) {
-        super(null, null, NUMBER);
+        super();
         this.value = value;
         this.selectionMask = selectionMask;
+        this.numbersUsed = {};
+        this.numbersUsed[value] = 1;
     }
 
     getSelectionMask() {
@@ -109,17 +125,358 @@ class SingleNumber extends Expression {
         return NUMBER;
     }
 
-    getNumbersUsed() {
+    getOperatorType() {
+        return NUMBER;
+    }
+
+    getOperatorPrecedence() {
+        return operatorPrecedence[NUMBER];
+    }
+
+    getCountNumbersUsed() {
         return 1;
+    }
+
+    getNumbersUsed() {
+        return this.numbersUsed;
     }
 
     toString() {
         return this.value.toString();
     }
+
+    isAtom() {
+        return true;
+    }
+
+    getLeftExpressionList() {
+        return [ this ];
+    }
+
+    getRightExpressionList() {
+        return [];
+    }
+
+    isCompatible(otherExp, selectionCounts) {
+        if (otherExp.isAtom()) {
+            return (otherExp.selectionMask & this.selectionMask) == 0;
+        }
+        else {
+            return otherExp.isCompatible(this, selectionCounts);
+        }
+    }
+
+    compareTo(otherExp) {
+        if (!otherExp.isAtom()) {
+            return -otherExp.compareTo(this);
+        }
+        else {
+            return otherExp.getValue() - this.value;
+        }
+    }
 }
 
+function isPositiveOperator(op) {
+    return op == PLUS || op == TIMES;
+}
+
+function mergeExpressionLists(list1, list2) {
+    var pos1, pos2;
+    var output = [];
+
+    pos1 = 0;
+    pos2 = 0;
+    
+    while (pos1 < list1.length && pos2 < list2.length) {
+        if (list1[pos1].compareTo(list2[pos2]) <= 0) {
+            output.push(list1[pos1++]);
+        }
+        else {
+            output.push(list2[pos2++]);
+        }
+    }
+    if (pos1 < list1.length) {
+        output = output.concat(list1.slice(pos1));
+    }
+    if (pos2 < list2.length) {
+        output = output.concat(list2.slice(pos2));
+    }
+    return output;
+}
+
+/* In find-all-solutions mode, all expressions are either OrderedExpressions
+ * or SingleNumbers. */
+class OrderedExpression extends Expression {
+    constructor(leftExp, rightExp, operator) {
+        super();
+        this.numbersUsed = {};
+        var leftNumsUsed = leftExp.getNumbersUsed();
+        var rightNumsUsed = rightExp.getNumbersUsed();
+        for (var n in leftNumsUsed) {
+            this.numbersUsed[n] = leftNumsUsed[n];
+        }
+        for (var n in rightNumsUsed) {
+            if (n in this.numbersUsed) {
+                this.numbersUsed[n] = this.numbersUsed[n] + rightNumsUsed[n];
+            }
+            else {
+                this.numbersUsed[n] = rightNumsUsed[n];
+            }
+        }
+
+        /* To make elimination of duplicate solutions easier, an
+         * OrderedExpression isn't necessarily a binary tree. It's a node with
+         * a list of left children and a list of right children. The
+         * expression's value is either the sum of the left children minus the
+         * sum of the right children, or the product of the left children
+         * divided by the product of the right children. */
+        this.countNumbersUsed = leftExp.getCountNumbersUsed() + rightExp.getCountNumbersUsed();
+
+        /* If the left expression is the same operator type as us (e.g. both
+         * additive or both multiplicative) then we take the left expression's
+         * left and right (plus and minus, or times and divide) expression
+         * lists, and add them to our (currently empty) left and right
+         * expression lists.
+         *
+         * If the left expression isn't the same operator type as us (e.g.
+         * operator is PLUS and the left expression is a times-or-divide
+         * node) then we have to treat that left expression on its own - we
+         * add it to our left list and leave the right list empty for now.
+         * For example, if we have the left expression (2*3) and the right
+         * expression (4) and we want to add them together, our left
+         * expression list becomes [ (2*3) ]. */
+        if (leftExp.getOperatorType() == operatorTypes[operator]) {
+            this.leftExpressions = leftExp.getLeftExpressionList();
+            this.rightExpressions = leftExp.getRightExpressionList();
+        }
+        else {
+            this.leftExpressions = [leftExp];
+            this.rightExpressions = [];
+        }
+
+        /* Right expression is similar, but we must bear in mind that if we're
+         * a negative operator (minus or divide) then the right expression's
+         * left expression list gets added to our right and its right
+         * expression list gets added to our left.
+         * If the operator type of the right expression doesn't match ours,
+         * then we must treat it as an indivisible expression.
+         *
+         * For example, if the left expression is 2*3 and the right expression
+         * is 8/4, and we have to subtract, our left expression list will be
+         * [ 2*3 ] and our right expression will be [ 8/4 ]. If we have to
+         * multiply those two expressions rather than subtract, our left list
+         * will be [ 2, 3, 8 ] and our right list will be [4]. If we have to
+         * divide, our left list will be [ 2, 3, 4 ] and our right list will be
+         * [8]. */
+        var posList, negList;
+        if (rightExp.getOperatorType() == operatorTypes[operator]) {
+            posList = rightExp.getLeftExpressionList();
+            negList = rightExp.getRightExpressionList();
+        }
+        else {
+            posList = [ rightExp ];
+            negList = [];
+        }
+
+        if (isPositiveOperator(operator)) {
+            this.leftExpressions = mergeExpressionLists(this.leftExpressions, posList);
+            this.rightExpressions = mergeExpressionLists(this.rightExpressions, negList);
+        }
+        else {
+            this.leftExpressions = mergeExpressionLists(this.leftExpressions, negList);
+            this.rightExpressions = mergeExpressionLists(this.rightExpressions, posList);
+        }
+        
+        this.operatorType = operatorTypes[operator];
+        this.value = null;
+        this.stringValue = null;
+    }
+
+    isAtom() {
+        return false;
+    }
+
+    getLeftExpressionList() {
+        return this.leftExpressions.slice();
+    }
+
+    getRightExpressionList() {
+        return this.rightExpressions.slice();
+    }
+
+    getValue() {
+        if (this.value == null) {
+            var leftTotal = 0;
+            var rightTotal = 0;
+
+            if (this.operatorType == TIMES_DIVIDE) {
+                leftTotal = 1;
+                rightTotal = 1;
+                for (var i = 0; i < this.leftExpressions.length; ++i) {
+                    leftTotal *= this.leftExpressions[i].getValue();
+                }
+                for (var i = 0; i < this.rightExpressions.length; ++i) {
+                    rightTotal *= this.rightExpressions[i].getValue();
+                }
+                this.value = leftTotal / rightTotal;
+            }
+            else {
+                for (var i = 0; i < this.leftExpressions.length; ++i) {
+                    leftTotal += this.leftExpressions[i].getValue();
+                }
+                for (var i = 0; i < this.rightExpressions.length; ++i) {
+                    rightTotal += this.rightExpressions[i].getValue();
+                }
+                this.value = leftTotal - rightTotal;
+            }
+        }
+        return this.value;
+    }
+
+    getNumbersUsed() {
+        return this.numbersUsed;
+    }
+
+    getCountNumbersUsed() {
+        return this.countNumbersUsed;
+    }
+
+    getOperatorType() {
+        return this.operatorType;
+    }
+
+    joinExps(expList, opStr, bracketSubExps) {
+        var expStr = "";
+        for (var i = 0; i < expList.length; ++i) {
+            if (i > 0) {
+                expStr += " " + opStr + " ";
+            }
+            if (bracketSubExps && !expList[i].isAtom())
+                expStr += "(";
+            expStr += expList[i].toString();
+            if (bracketSubExps && !expList[i].isAtom())
+                expStr += ")";
+        }
+        return expStr;
+    }
+
+    toString() {
+        if (this.stringValue == null) {
+            var opStr = this.operatorType == TIMES_DIVIDE ? "*" : "+";
+            var bracketSubExps = (this.operatorType == TIMES_DIVIDE);
+            var expStr = this.joinExps(this.leftExpressions, opStr, bracketSubExps);
+
+            if (this.rightExpressions.length > 0) {
+                if (this.operatorType == TIMES_DIVIDE) {
+                    var brackets;
+                    if (this.rightExpressions.length > 1)
+                        brackets = [ "(", ")" ];
+                    else
+                        brackets = [ "", "" ];
+                    expStr += " / " + brackets[0] + this.joinExps(this.rightExpressions, "*", true) + brackets[1];
+                }
+                else {
+                    expStr += " - " + this.joinExps(this.rightExpressions, "-", false);
+                }
+            }
+            this.stringValue = expStr;
+        }
+
+        return this.stringValue;
+    }
+
+    isCompatible(otherExp, selectionCounts) {
+        var otherCounts = otherExp.getNumbersUsed();
+        var totalCounts = {};
+        
+        for (var n in this.numbersUsed) {
+            if (n in totalCounts)
+                totalCounts[n] += this.numbersUsed[n];
+            else
+                totalCounts[n] = this.numbersUsed[n];
+        }
+        
+        for (var n in otherCounts) {
+            if (n in totalCounts)
+                totalCounts[n] += otherCounts[n];
+            else
+                totalCounts[n] = otherCounts[n];
+        }
+
+        for (var n in totalCounts) {
+            if (totalCounts[n] > 0 && (!(n in selectionCounts) || selectionCounts[n] < totalCounts[n])) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /* Decide whether this expression should go before or after otherExp in
+     * a multi-term sum or product. This means we don't have equivalent but
+     * trivially-different expressions lying around, like "6 * 4 + 5" and
+     * "5 + 6 * 4". */
+    compareTo(otherExp) {
+        /* If one expression has a larger value than the other, put the
+         * larger-valued one first. */
+        var diff = this.getValue() - otherExp.getValue();
+        if (diff != 0)
+            return -diff;
+
+        /* Put multiplications and divisions first, then additions or
+         * subtractions, then bare numbers.
+         * e.g. "7 * 6 + 42", not "42 + 7 * 6"
+         */
+        diff = this.getOperatorType() - otherExp.getOperatorType();
+        /* * or / comes first, then + or -, then bare numbers */
+        if (diff != 0)
+            return -diff;
+
+        if (this.isAtom()) {
+            /* If this is a bare number then otherExp is also the same bare
+             * number if we got this far. */
+            return 0;
+        }
+
+        /* The expression with more numbers in it goes first */
+        diff = this.getCountNumbersUsed() - otherExp.getCountNumbersUsed();
+        if (diff != 0)
+            return -diff;
+
+        /* Otherwise, compare the sub-expressions */
+        var thisLeft = this.getLeftExpressionList();
+        var thisRight = this.getRightExpressionList();
+        var otherLeft = otherExp.getLeftExpressionList();
+        var otherRight = otherExp.getRightExpressionList();
+
+        for (var i = 0; i < thisLeft.length && i < otherLeft.length; ++i) {
+            diff = thisLeft[i].compareTo(otherLeft[i]);
+            if (diff != 0)
+                return diff;
+        }
+        
+        /* Expression with the longer left-expression goes first */
+        if (thisLeft.length != otherLeft.length)
+            return otherLeft.length - thisLeft.length;
+
+        /* ... and in the event of a tie, compare the right sub-expressions
+         * in the same way. */
+        for (var i = 0; i < thisRight.length && i < otherRight.length; ++i) {
+            diff = thisRight[i].compareTo(otherRight[i]);
+            if (diff != 0)
+                return diff;
+        }
+        if (thisRight.length != otherRight.length)
+            return otherRight.length - thisRight.length;
+
+        /* okay, we'll call it a draw */
+        return 0;
+    }    
+}
+
+
 class SolverState {
-    constructor(progressCallback, finishedCallback) {
+    constructor(progressCallback, finishedCallback, fastSolve) {
         this.startTime = Date.now();
         this.selection = null;
         this.target = null;
@@ -139,11 +496,17 @@ class SolverState {
          * 55 maps to [10, 12] that means that we know 55 can be made from
          * the second and fourth starting number (9, binary 1010) and also
          * from the third and fourth starting number (12, binary 1100).
+         *
+         * If fastSolve is false, this is instead a map of result
+         * values to sets of expression strings.
          */
         this.resultMap = {};
 
         /* The expression which gets us closest to the target so far. */
         this.nearestExp = null;
+
+        /* All the "nearest" expressions we've found so far. */
+        this.nearestExpList = [];
 
         /* The selection as a string. */
         this.selectionString = "";
@@ -167,6 +530,15 @@ class SolverState {
 
         /* The length of expression step() is currently looking to generate. */
         this.soughtExpressionLength = 1;
+
+        /* How many we have of each number. */
+        this.selectionCounts = {};
+
+        /* If fastSolve is true, we eliminate redundant expressions
+         * aggressively and return the first optimal solution we find.
+         * If fastSolve is false, we only eliminate equivalent expressions and
+         * we return all the optimal solutions. */
+        this.fastSolve = fastSolve;
     }
 
     start(selection, target) {
@@ -195,24 +567,48 @@ class SolverState {
             var exp = new SingleNumber(selection[i], 1 << i);
             this.addExpressionToList(exp);
 
-            var resultMasks = this.resultMap[selection[i]];
-            if (resultMasks == null) {
-                resultMasks = []
-                this.resultMap[selection[i]] = resultMasks;
+            if (this.fastSolve) {
+                var resultMasks = this.resultMap[selection[i]];
+                if (resultMasks == null) {
+                    resultMasks = [];
+                    this.resultMap[selection[i]] = resultMasks;
+                }
+                resultMasks.push(exp.getSelectionMask());
             }
-            resultMasks.push(exp.getSelectionMask());
+            else {
+                var resultStrings = this.resultMap[selection[i]];
+                if (resultStrings == null) {
+                    resultStrings = {};
+                    this.resultMap[selection[i]] = resultStrings;
+                }
+                resultStrings[exp.toString()] = true;
+            }
 
-            /* If the target is in the selection, just return the single
-             * expression containing that number */
             if (exp.getValue() == target) {
-                this.finishedCallback(exp, target, null);
-                this.reset();
-                return;
+                if (this.fastSolve) {
+                    /* If the target is in the selection, just return the single
+                     * expression containing that number */
+                    this.finishedCallback([exp], target, null);
+                    this.reset();
+                    return;
+                }
+                else {
+                    /* Add this expression to our list of nearest expressions */
+                    this.nearestExp = exp;
+                    this.nearestExpList = [exp];
+                }
             }
 
             if (i > 0)
                 this.selectionString += " ";
             this.selectionString += selection[i].toString();
+
+            var currentCount;
+            if (selection[i] in this.selectionCounts)
+                currentCount = this.selectionCounts[selection[i]];
+            else
+                currentCount = 0;
+            this.selectionCounts[selection[i]] = currentCount + 1;
         }
 
         /* The expression length we're generating currently. */
@@ -251,6 +647,11 @@ class SolverState {
                 this.expLength2 = this.soughtExpressionLength - this.expLength1;
                 //console.log("expLength1 " + this.expLength1.toString() + ", expLength2 " + this.expLength2.toString());
 
+                if (!(this.expLength1 in this.expressions))
+                    this.expressions[this.expLength1] = [];
+                if (!(this.expLength2 in this.expressions))
+                    this.expressions[this.expLength2] = [];
+
                 var expressions1 = this.expressions[this.expLength1];
                 var expressions2 = this.expressions[this.expLength2];
 
@@ -259,7 +660,7 @@ class SolverState {
                         var exp1 = expressions1[this.expIndex1];
                         var exp2 = expressions2[this.expIndex2];
 
-                        if (exp1.isCompatible(exp2)) {
+                        if (exp1.isCompatible(exp2, this.selectionCounts)) {
                             /* exp1 and exp2 are compatible - they don't use
                              * any of the same starting numbers. */
                             
@@ -283,87 +684,159 @@ class SolverState {
                                 if (op == TIMES && (leftValue < 2 || rightValue < 2))
                                     continue;
 
+                                /* We don't ever need to subtract x from 2x,
+                                 * because the answer will be x, which we
+                                 * already have. For example, 10 - 5 is always
+                                 * useless. */
+                                if (op == MINUS && leftValue == rightValue * 2)
+                                    continue;
+
+                                /* We don't ever need to divide a number by its
+                                 * square root, because the square root will
+                                 * be the answer, which we already have. e.g.
+                                 * we never need to do 9 / 3 or 25 / 5. */
+                                if (op == DIVIDE && leftValue == rightValue * rightValue)
+                                    continue;
+
                                 var newExp;
 
                                 /* Personal style: for addition and
                                  * multiplication, put the larger number on
                                  * the left. */
-                                if ((op == PLUS || op == TIMES) && exp1.getValue() < exp2.getValue()) {
-                                    newExp = new Expression(exp2, exp1, op);
+                                if (this.fastSolve) {
+                                    if ((op == PLUS || op == TIMES) && exp1.getValue() < exp2.getValue()) {
+                                        newExp = new BinaryTreeExpression(exp2, exp1, op);
+                                    }
+                                    else {
+                                        newExp = new BinaryTreeExpression(exp1, exp2, op);
+                                    }
                                 }
                                 else {
-                                    newExp = new Expression(exp1, exp2, op);
+                                    newExp = new OrderedExpression(exp1, exp2, op);
                                 }
                                 var resultValue = newExp.getValue();
-                                var selectionMask = newExp.getSelectionMask();
 
                                 if (resultValue == this.target) {
                                     /* We've found an expression which equals
-                                     * the target, so we've finished. */
+                                     * the target. If fastSolve is set then
+                                     * we've finished and don't need to do
+                                     * anything more. */
                                     var timeMs = Date.now() - this.startTime;
                                     console.log(this.selectionString + " -> " +
                                             this.target.toString() + ": solved. " +
                                             this.numExpressions +  " expressions, " +
-                                            timeMs.toString() + "ms.");
+                                            timeMs.toString() + "ms. " +
+                                            newExp.toString());
 
-                                    if (this.finishedCallback != null) {
-                                        this.finishedCallback(newExp, this.target, null);
+                                    if (this.fastSolve) {
+                                        if (this.finishedCallback != null) {
+                                            this.finishedCallback([newExp], this.target, null);
+                                        }
+                                        this.reset();
+                                        return;
                                     }
-                                    this.reset();
-                                    return;
-                                }
-
-                                /* Get the list of selection masks which we
-                                 * already know we can use to make resultValue.
-                                 * If the expression newExp uses a superset of
-                                 * one of those selection masks then we don't
-                                 * need newExp.
-                                 *
-                                 * For example, there's no need to know we can
-                                 * make 35 from 3*10+5 if we already know we
-                                 * can make it from (10-3)*5. We don't need the
-                                 * expression 4*2-2=6 if we already know
-                                 * 4+2=6 (and we will already have the smaller
-                                 * expression in our list, because we build the
-                                 * smaller expressions first).
-                                 */
-                                var resultExistingMasks = this.resultMap[resultValue];
-                                if (resultExistingMasks == null) {
-                                    resultExistingMasks = [];
-                                    this.resultMap[resultValue] = resultExistingMasks;
                                 }
 
                                 var addExp = true;
+                                if (this.fastSolve) {
+                                    var selectionMask = newExp.getSelectionMask();
+                                    /* Get the list of selection masks which we
+                                     * already know we can use to make
+                                     * resultValue. If the expression newExp
+                                     * uses a superset of one of those
+                                     * selection masks then we don't need
+                                     * newExp.
+                                     *
+                                     * For example, there's no need to know we
+                                     * can make 35 from 3*10+5 if we already
+                                     * know we can make it from (10-3)*5. We
+                                     * don't need the expression 4*2-2=6 if we
+                                     * already know 4+2=6 (and we will already
+                                     * have the smaller expression in our list,
+                                     * because we build the smaller expressions
+                                     * first).
+                                     */
+                                    var resultExistingMasks = this.resultMap[resultValue];
+                                    if (resultExistingMasks == null) {
+                                        resultExistingMasks = [];
+                                        this.resultMap[resultValue] = resultExistingMasks;
+                                    }
 
-                                for (var k = 0; k < resultExistingMasks.length; ++k) {
-                                    if ((selectionMask & resultExistingMasks[k]) == resultExistingMasks[k]) {
-                                        /* We've already got an expression for
-                                         * resultValue which uses a subset of
-                                         * the numbers this expression uses */
+
+                                    for (var k = 0; k < resultExistingMasks.length; ++k) {
+                                        if ((selectionMask & resultExistingMasks[k]) == resultExistingMasks[k]) {
+                                            /* We've already got an expression
+                                             * for resultValue which uses a
+                                             * subset of the numbers this
+                                             * expression uses */
+                                            addExp = false;
+                                            break;
+                                        }
+                                    }
+
+                                    /* If after all that, this is a new and
+                                     * interesting expression that gives us a
+                                     * particular value in a way we couldn't
+                                     * get before with the set of numbers the
+                                     * expression uses, add it to the list, and
+                                     * remember that this result can now be got
+                                     * by this set of numbers. */
+                                    if (addExp) {
+                                        resultExistingMasks.push(selectionMask);
+                                    }
+                                }
+                                else {
+                                    /* Not in fast-solve mode, so because all
+                                     * the expressions we've generated have
+                                     * had their reorderable components in a
+                                     * standard order, we can just check if the
+                                     * string representation of the expression
+                                     * is in the hash set for this result
+                                     * value. */
+                                    var resultExistingStrings = this.resultMap[resultValue];
+                                    if (resultExistingStrings == null) {
+                                        resultExistingStrings = {};
+                                        this.resultMap[resultValue] = resultExistingStrings;
+                                    }
+
+                                    if (newExp.toString() in resultExistingStrings) {
+                                        /* We already have this expression */
                                         addExp = false;
-                                        break;
+                                    }
+
+                                    if (addExp) {
+                                        resultExistingStrings[newExp.toString()] = true;
                                     }
                                 }
 
-                                /* If after all that, this is a new and
-                                 * interesting expression that gives us a
-                                 * particular value in a way we couldn't get
-                                 * before with the set of numbers the
-                                 * expression uses, add it to the list, and
-                                 * remember that this result can now be got by
-                                 * this set of numbers. */
                                 if (addExp) {
-                                    resultExistingMasks.push(selectionMask);
                                     this.addExpressionToList(newExp);
                                     expressionsThisStep++;
-                                }
 
-                                /* If the value of this expression is closer to
-                                 * the target than the closest we've found so
-                                 * far, remember it. */
-                                if (this.nearestExp == null ||
-                                        Math.abs(this.nearestExp.getValue() - this.target) > Math.abs(resultValue - this.target)) {
-                                    this.nearestExp = newExp;
+                                    /* If the value of this expression is
+                                     * closer to the target than the closest
+                                     * we've found so far, remember it. */
+                                    var betterThanNearest;
+                                    if (this.nearestExp == null) {
+                                        betterThanNearest = null;
+                                    }
+                                    else {
+                                        betterThanNearest = Math.abs(this.nearestExp.getValue() - this.target) - Math.abs(resultValue - this.target);
+                                    }
+
+                                    if (this.nearestExp == null ||
+                                            betterThanNearest >= 0) {
+                                        if (this.nearestExp == null || betterThanNearest > 0) {
+                                            /* If this expression is better
+                                             * than rather than equally as good
+                                             * as the current best, empty the
+                                             * list of nearest expressions and
+                                             * start a new one. */
+                                            this.nearestExpList = [];
+                                            this.nearestExp = newExp;
+                                        }
+                                        this.nearestExpList.push(newExp);
+                                    }
                                 }
                             }
 
@@ -403,14 +876,16 @@ class SolverState {
         }
 
         /* If we get here, we've searched the entire relevant expression space.
-         * Return the expression that got closest to the target. */
+         * Return the expression that got closest to the target if we're in
+         * fastSolve mode, or the list of optimal expressions if we're not in
+         * fastSolve mode. */
         var timeMs = Date.now() - this.startTime;
         console.log(this.selectionString + " -> " + this.target.toString() +
-                ": nearest possible is " + (this.nearestExp == null ? "unknown" : this.nearestExp.getValue().toString()) + ". "
+                ": best is " + (this.nearestExp == null ? "unknown" : this.nearestExp.getValue().toString()) + ". "
                 + this.numExpressions +  " expressions, " +
                 timeMs.toString() + "ms.");
         if (this.finishedCallback != null) {
-            this.finishedCallback(this.nearestExp, this.target, null);
+            this.finishedCallback(this.fastSolve ? [this.nearestExp] : this.nearestExpList, this.target, null);
         }
         this.reset();
     }
@@ -421,15 +896,16 @@ class SolverState {
         this.resultMap = null;
         this.numExpressions = 0;
         this.nearestExp = null;
+        this.nearestExpList = [];
     }
     
     addExpressionToList(expression) {
-        var l = this.expressions[expression.getNumbersUsed()];
+        var l = this.expressions[expression.getCountNumbersUsed()];
         if (l == undefined) {
             l = [];
         }
         l.push(expression);
-        this.expressions[expression.getNumbersUsed()] = l;
+        this.expressions[expression.getCountNumbersUsed()] = l;
         this.numExpressions++;
     }
 }
@@ -444,19 +920,37 @@ class SolverState {
  *
  * When a solution is found, or if we determine there is no exact solution,
  * finishedCallback() will be called with the following arguments, in order:
- *     1. The Expression object for the solution (or nearest possible). If
- *        there was an error, this is null.
+ *     1. This is an array of Expression objects, one for each solution found.
+ *        Note that if the solve was started by solverRun(), the solver is run
+ *        in fast mode and it will stop as soon as it finds an exact solution.
+ *        If there is no exact solution, one best solution will be returned.
+ *        In either case, if the solve was started by solverRun() there will be
+ *        only one element in this array.
+ *        If there was an error, this is null.
  *     2. The target, as a number.
  *     3. An error message (a string). If the expression parameter is null,
  *        this will explain why. If there was no error, this is null.
  *
- * We make no attempt to find "all" the solutions to a numbers puzzle. Once we
- * find one expression which equals the target, we return it. This will use the
- * fewest number of numbers possible, because we start by building up all the
- * 2-number expressions, then the 3-number expressions, and so on.
+ * In fast mode (solverRun()) we make no attempt to find "all" the solutions to
+ * a numbers puzzle. Once we find one expression which equals the target, we
+ * return it. This will use the fewest number of numbers possible, because we
+ * start by building up all the 2-number expressions, then the 3-number
+ * expressions, and so on.
+ *
+ * If we're not in fast mode (solverRunAllSolutions()) we find all the
+ * non-trivially-different solutions that give the closest possible to the
+ * target.
  */
 
-function solverRun(selection, target, progressCallback, finishedCallback) {
-    var solverState = new SolverState(progressCallback, finishedCallback);
+function solverRunAux(selection, target, progressCallback, finishedCallback, fastSolve) {
+    var solverState = new SolverState(progressCallback, finishedCallback, fastSolve);
     solverState.start(selection, target);
+}
+
+function solverRun(selection, target, progressCallback, finishedCallback) {
+    solverRunAux(selection, target, progressCallback, finishedCallback, true);
+}
+
+function solverRunAllSolutions(selection, target, progressCallback, finishedCallback) {
+    solverRunAux(selection, target, progressCallback, finishedCallback, false);
 }
