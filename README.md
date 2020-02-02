@@ -1,5 +1,4 @@
 # numsolver
-JavaScript solver for Countdown numbers games
 
 This is a solver for numbers games on the TV show Countdown. It is written in JavaScript with an HTML frontend which is designed for mobile devices. All the calculations are done in JavaScript, so there is no need for a server, or even an internet connection once your browser has loaded the page.
 
