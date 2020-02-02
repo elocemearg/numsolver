@@ -18,7 +18,7 @@ This solver is not affiliated with or endorsed by Countdown or anyone connected 
 
 This section is intended for developers who want to use the solver engine in their own projects.
 
-`solver_engine.js` is the backend, which can be repurposed to whatever other interface you have. Its public-facing functions are `runSolver()` and `runSolverAllSolutions()`.
+`solver_engine.js` is the backend, which can be repurposed to whatever other interface you have. Its public-facing functions are `runSolver()` and `runSolverAllSolutions()`. Both of these functions return immediately and start the solve process in the background using JavaScript's `setTimeout()` call. When the solve process is finished, the result is delivered to the application using a callback.
 
 Both `runSolver()` and `runSolverAllSolutions()` take four arguments as follows:
 
@@ -70,7 +70,7 @@ Return an array of `Expression` objects, each of which is a best solution. If yo
 
 ### `getSolution()`
 Returns the first expression in the list returned by `getSolutions()`, or
-`null` if no solutions were found.
+`null` if no solutions were found due to an error.
 
 ### `getNumSolutions()`
 Return the number of best solutions found. This will be the length of the array
