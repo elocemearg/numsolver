@@ -29,7 +29,8 @@ Both `runSolver()` and `runSolverAllSolutions()` take four arguments as follows:
 
 ## The `SolverProgress` object passed to `progressCallback()`
 The `progressCallback` parameter must be a function which takes a single
-argument. This is a `SolverProgress` object. Its public methods are as follows:
+argument. This is a `SolverProgress` object created by the engine. Its public
+methods are as follows:
 
 ### `getSelection()`
 Return the selection for this numbers game, as an array of integers.
@@ -52,7 +53,7 @@ Return the number of solutions we've found so far which are equally as close
 to the target as `getBestTotalSoFar()`.
 
 ## The `SolverResult` object passed to `finishedCallback()`
-The `finishedCallback` parameter must be a function which takes a single argument. This is a `SolverResult` object. Its public methods are as follows:
+The `finishedCallback` parameter must be a function which takes a single argument. This is a `SolverResult` object created by the engine. Its public methods are as follows:
 
 ### `getSelection()`
 Return the selection for this numbers game, as an array of integers.
