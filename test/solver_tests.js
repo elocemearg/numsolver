@@ -87,16 +87,17 @@ function testFinishedAllSolutions(expressions, target, errorMsg) {
     testFinishedTail(failed, testReport);
 }
 
-function testFinished(expression, target, errorMsg) {
+function testFinished(expressions, target, errorMsg) {
     var testCase = testCases[testNum];
     var failed = false;
     var testReport = makeTestReportPreamble(testNum, testCase);
 
-    if (expression == null) {
+    if (expressions == null || expressions.length == 0) {
         testReport += " ERROR: " + errorMsg;
         failed = true;
     }
     else {
+        var expression = expressions[0];
         var away = Math.abs(expression.getValue() - target);
         testReport += expression.toString() + " = " + expression.getValue().toString() + ". ";
         if (away != testCase.numAway) {
