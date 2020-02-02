@@ -18,6 +18,89 @@ const operatorTypes = [ PLUS_MINUS, PLUS_MINUS, TIMES_DIVIDE, TIMES_DIVIDE, NUMB
  * solution exists) gets bigger by a surprisingly large amount. */
 const SELECTION_MAX = 8;
 
+/* SolverResults object, passed to the user's finishedCallback function. */
+class SolverResults {
+    constructor(selection, target, expressions, errorMessage) {
+        this.selection = selection.slice();
+        this.target = target;
+        this.expressions = expressions;
+        this.errorMessage = errorMessage;
+    }
+
+    isSuccessful() {
+        return this.expressions != null && this.expressions.length > 0;
+    }
+
+    getSelection() {
+        return this.selection;
+    }
+
+    getTarget() {
+        return this.target;
+    }
+
+    getSolutions() {
+        return this.expressions;
+    }
+
+    getSolution() {
+        if (this.expressions == null || this.expressions.length == 0) {
+            return null;
+        }
+        else {
+            return this.expressions[0];
+        }
+    }
+
+    getNumSolutions() {
+        if (this.expressions == null)
+            return 0;
+        else
+            return this.expressions.length;
+    }
+
+    getErrorMessage() {
+        return this.errorMessage;
+    }
+}
+
+/* SolverProgress object, passed to the user's progressCallback function if it
+ * was defined. */
+class SolverProgress {
+    constructor(selection, target, msElapsed, numExpressions, bestTotalSoFar, numBestSolutions) {
+        this.selection = selection.slice();
+        this.target = target;
+        this.msElapsed = msElapsed;
+        this.numExpressions = numExpressions;
+        this.bestTotalSoFar = bestTotalSoFar;
+        this.numBestSolutions = numBestSolutions;
+    }
+
+    getSelection() {
+        return this.selection;
+    }
+
+    getTarget() {
+        return this.target;
+    }
+
+    getElapsedMs() {
+        return this.msElapsed;
+    }
+
+    getNumExpressionsBuilt() {
+        return this.numExpressions;
+    }
+
+    getBestTotalSoFar() {
+        return this.bestTotalSoFar;
+    }
+
+    getNumBestSolutionsSoFar() {
+        return this.numBestSolutions;
+    }
+}
+
 class Expression {
 }
 
@@ -484,17 +567,12 @@ class SolverState {
         this.target = null;
 
         /* We call this after we've completed a step() to give the caller an
-         * idea of how things are going. The arguments are the number of
-         * milliseconds elapsed since we started on this solve, the number of
-         * expressions we've generated, and an Expression object which is
-         * (one of) the closest to the target we've found so far. */
+         * idea of how things are going. It takes a single argument, which is
+         * a SolverProgress object. */
         this.progressCallback = progressCallback;
 
-        /* We call this when we've finished. The first argument is the
-         * starting selection, the second argument is the target, the third
-         * argument is a list of Expressions (or null if there was an error),
-         * and the fourth argument is an error message as a string (or null if
-         * there was no error). */
+        /* We call this when we've finished. It takes a single argument, which
+         * is a SolverResults object. */
         this.finishedCallback = finishedCallback;
 
         /* expressions: map of expression length to list of expressions of
@@ -560,19 +638,32 @@ class SolverState {
         this.target = target;
         
         if (this.selection.length < 2 || this.selection.length > SELECTION_MAX) {
-            this.finishedCallback(selection, target, null, "Selection must contain between 2 and " + SELECTION_MAX.toString() + " numbers.");
+            this.finishedCallback(
+                    new SolverResults(
+                        selection, target, null,
+                        "Selection must contain between 2 and " + SELECTION_MAX.toString() + " numbers."
+                    )
+            );
             this.reset();
             return;
         }
 
         if (isNaN(target)) {
-            this.finishedCallback(selection, target, null, "Target is not a number.");
+            this.finishedCallback(
+                    new SolverResults(selection, target, null,
+                        "Target is not a number."
+                    )
+            );
             this.reset();
             return;
         }
 
         if (target <= 0) {
-            this.finishedCallback(selection, target, null, "Target must be a positive integer.");
+            this.finishedCallback(
+                    new SolverResults(selection, target, null,
+                        "Target must be a positive integer."
+                    )
+            );
             this.reset();
             return;
         }
@@ -602,7 +693,9 @@ class SolverState {
                 if (this.fastSolve) {
                     /* If the target is in the selection, just return the single
                      * expression containing that number */
-                    this.finishedCallback(selection, target, [exp], null);
+                    this.finishedCallback(
+                            new SolverResults(selection, target, [exp], null)
+                    );
                     this.reset();
                     return;
                 }
@@ -744,7 +837,13 @@ class SolverState {
 
                                     if (this.fastSolve) {
                                         if (this.finishedCallback != null) {
-                                            this.finishedCallback(this.selection, this.target, [newExp], null);
+                                            this.finishedCallback(
+                                                    new SolverResults(
+                                                        this.selection,
+                                                        this.target,
+                                                        [newExp], null
+                                                    )
+                                            );
                                         }
                                         this.reset();
                                         return;
@@ -866,9 +965,13 @@ class SolverState {
 
                                 if (this.progressCallback != null) {
                                     this.progressCallback(
-                                            now - this.startTime,
-                                            this.numExpressions,
-                                            this.nearestExp == null ? -1 : this.nearestExp.getValue()
+                                            new SolverProgress(this.selection,
+                                                this.target,
+                                                now - this.startTime,
+                                                this.numExpressions,
+                                                this.nearestExp == null ? -1 : this.nearestExp.getValue(),
+                                                this.nearestExpList == null ? 0 : this.nearestExpList.length
+                                            )
                                     );
                                 }
                                 setTimeout(() => { this.step(); }, this.dutyCycleOffMs);
@@ -899,7 +1002,11 @@ class SolverState {
                 + this.numExpressions +  " expressions, " +
                 timeMs.toString() + "ms.");
         if (this.finishedCallback != null) {
-            this.finishedCallback(this.selection, this.target, this.fastSolve ? [this.nearestExp] : this.nearestExpList, null);
+            this.finishedCallback(
+                    new SolverResults(this.selection, this.target,
+                        this.fastSolve ? [this.nearestExp]:this.nearestExpList,
+                        null)
+            );
         }
         this.reset();
     }
@@ -933,22 +1040,12 @@ class SolverState {
  * calls.
  *
  * Every mumblemumble milliseconds, progressCallback() will be called with
- * the number of milliseconds elapsed so far, the number of expressions we
- * have, and the closest we've got so far to the target.
+ * a SolverProgress object, which contains, among other things, the number of
+ * milliseconds elapsed so far and how close we've got to the target.
  *
  * When a solution is found, or if we determine there is no exact solution,
- * finishedCallback() will be called with the following arguments, in order:
- *     1. The selection, as an array of numbers.
- *     2. The target, as a number.
- *     3. An array of Expression objects, one for each solution found.
- *        Note that if the solve was started by solverRun(), the solver is run
- *        in fast mode and it will stop as soon as it finds an exact solution.
- *        If there is no exact solution, one best solution will be returned.
- *        In either case, if the solve was started by solverRun() there will be
- *        only one element in this array.
- *        If there was an error, this is null.
- *     4. An error message (a string). If the expressions parameter is null,
- *        this will explain why. If there was no error, this is null.
+ * finishedCallback() will be called with a single argument, a SolverResults
+ * object. This contains the solution or solutions the solver found.
  *
  * In fast mode (solverRun()) we make no attempt to find "all" the solutions to
  * a numbers puzzle. Once we find one expression which equals the target, we

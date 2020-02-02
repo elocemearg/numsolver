@@ -94,7 +94,7 @@ function addMethodDiv(parentDiv, expression) {
     parentDiv.appendChild(methodDiv);
 }
 
-function showSolveResult(selection, target, expressionList, errorMessage) {
+function showSolveResultAux(selection, target, expressionList, errorMessage) {
     var answerDiv = document.getElementById("answerdiv");
     var expression;
 
@@ -127,19 +127,24 @@ function showSolveResult(selection, target, expressionList, errorMessage) {
     updateControls();
 }
 
-function showSolveResultList(selection, target, expressions, errorMessage) {
+function showSolveResult(solveResult) {
+    showSolveResultAux(solveResult.getSelection(), solveResult.getTarget(),
+            solveResult.getSolutions(), solveResult.getErrorMessage());
+}
+
+function showSolveResultListAux(selection, target, expressions, errorMessage) {
     if (expressions == null) {
-        showSolveResult(selection, target, null, errorMessage);
+        showSolveResultAux(selection, target, null, errorMessage);
         currentSolutionList = [];
     }
     else if (expressions.length == 0) {
-        showSolveResult(selection, target, null, "No solutions found.");
+        showSolveResultAux(selection, target, null, "No solutions found.");
         currentSolutionList = [];
     }
     else {
         var away = Math.abs(expressions[0].getValue() - target);
         var answerDiv = document.getElementById("answerdiv");
-        showSolveResult(selection, target, expressions, errorMessage);
+        showSolveResultAux(selection, target, expressions, errorMessage);
 
         var answerFurtherSolutionsDiv = document.getElementById("answerfurthersolutions");
         if (expressions.length < 2) {
@@ -150,6 +155,11 @@ function showSolveResultList(selection, target, expressions, errorMessage) {
         }
         currentSolutionList = expressions;
     }
+}
+
+function showSolveResultList(solveResult) {
+    showSolveResultListAux(solveResult.getSelection(), solveResult.getTarget(),
+            solveResult.getSolutions(), solveResult.getErrorMessage());
 }
 
 function findAllSolutionsForCurrentPuzzle() {
@@ -216,7 +226,27 @@ function msToMinsAndSecs(ms) {
     return str;
 }
 
-function showSolveProgress(elapsedMs, numExpressions, nearestTotal) {
+function showSolveProgress(solverProgress) {
+    var elapsedMs;
+    var numExpressions;
+    var nearestTotal;
+    var numBestSolutions;
+    var target = 0;
+
+    if (solverProgress == null) {
+        elapsedMs = 0;
+        numExpressions = 0;
+        nearestTotal = -1;
+        numBestSolutions = 0;
+    }
+    else {
+        elapsedMs = solverProgress.getElapsedMs();
+        numExpressions = solverProgress.getNumExpressionsBuilt();
+        nearestTotal = solverProgress.getBestTotalSoFar();
+        numBestSolutions = solverProgress.getNumBestSolutionsSoFar();
+        target = solverProgress.getTarget();
+    }
+
     var answerDiv = document.getElementById("answerdiv");
     var away = Math.abs(nearestTotal - currentTarget);
     var progressDiv;
@@ -236,7 +266,9 @@ function showSolveProgress(elapsedMs, numExpressions, nearestTotal) {
             "Elapsed time: " + msToMinsAndSecs(elapsedMs) + "<br />" +
             "Expressions: " + numExpressions.toString() + "<br />" +
             "Best so far: " + nearestTotal.toString() +
-                (nearestTotal < 0 ? "" : (" (" + away.toString() + " away)"));
+                (nearestTotal < 0 ? "" : (" (" + away.toString() + " away")) +
+                (nearestTotal == target ? (", " + numBestSolutions.toString() + " solution" + (numBestSolutions == 1 ? "" : "s")) : "") +
+                ")";
     }
 }
 
@@ -336,7 +368,7 @@ function updateControls() {
         answerDiv.innerText = "Enter target and press Solve.";
     }
     else if (uiState == SOLVING) {
-        showSolveProgress(0, 0, 0);
+        showSolveProgress(null);
         mainButton.innerText = "Solving...";
         setButtonEnabled(mainButton, false);
         for (var i = 0; i < allKeys.length; ++i) {
@@ -432,7 +464,7 @@ function buttonPress(button) {
     else if (uiState == SHOWING_ALL) {
         if (button < 0) {
             if (currentSolutionList.length > 0) {
-                showSolveResultList(currentSelection, currentTarget, currentSolutionList, null);
+                showSolveResultListAux(currentSelection, currentTarget, currentSolutionList, null);
             }
             else {
                 uiState = FINISHED;

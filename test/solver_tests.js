@@ -59,7 +59,12 @@ function makeTestReportPreamble(testNum, testCase) {
             selectionString + " -> " + testCase.target.toString() + " ... ";
 }
 
-function testFinishedAllSolutions(selection, target, expressions, errorMsg) {
+function testFinishedAllSolutions(solverResult) {
+    var selection = solverResult.getSelection();
+    var target = solverResult.getTarget();
+    var expressions = solverResult.getSolutions();
+    var errorMsg = solverResult.getErrorMessage();
+
     var testCase = testCases[testNum];
     var failed = false;
     var testReport = makeTestReportPreamble(testNum, testCase);
@@ -87,7 +92,12 @@ function testFinishedAllSolutions(selection, target, expressions, errorMsg) {
     testFinishedTail(failed, testReport);
 }
 
-function testFinished(selection, target, expressions, errorMsg) {
+function testFinished(solverResult) {
+    var selection = solverResult.getSelection();
+    var target = solverResult.getTarget();
+    var expressions = solverResult.getSolutions();
+    var errorMsg = solverResult.getErrorMessage();
+
     var testCase = testCases[testNum];
     var failed = false;
     var testReport = makeTestReportPreamble(testNum, testCase);
