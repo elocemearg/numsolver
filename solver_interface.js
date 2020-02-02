@@ -117,11 +117,13 @@ function showSolveResultAux(selection, target, expressionList, errorMessage) {
         answerDiv.innerText = errorMessage;
     }
 
-    var answerFurtherSolutionsDiv = document.createElement("div");
-    answerFurtherSolutionsDiv.className = "answerfurthersolutions";
-    answerFurtherSolutionsDiv.id = "answerfurthersolutions";
-    answerFurtherSolutionsDiv.innerHTML = "<a id=\"showmore\" class=\"morelink\" onclick=\"findAllSolutionsForCurrentPuzzle();\">Search for more solutions</a>";
-    answerDiv.appendChild(answerFurtherSolutionsDiv);
+    if (expression != null) {
+        var answerFurtherSolutionsDiv = document.createElement("div");
+        answerFurtherSolutionsDiv.className = "answerfurthersolutions";
+        answerFurtherSolutionsDiv.id = "answerfurthersolutions";
+        answerFurtherSolutionsDiv.innerHTML = "<a id=\"showmore\" class=\"morelink\" onclick=\"findAllSolutionsForCurrentPuzzle();\">Search for more solutions</a>";
+        answerDiv.appendChild(answerFurtherSolutionsDiv);
+    }
 
     uiState = FINISHED;
     updateControls();
@@ -147,11 +149,13 @@ function showSolveResultListAux(selection, target, expressions, errorMessage) {
         showSolveResultAux(selection, target, expressions, errorMessage);
 
         var answerFurtherSolutionsDiv = document.getElementById("answerfurthersolutions");
-        if (expressions.length < 2) {
-            answerFurtherSolutionsDiv.innerText = "This is the only " + ( away == 0 ? "" : "best ") + "solution.";
-        }
-        else {
-            answerFurtherSolutionsDiv.innerHTML = "<a id=\"showmore\" class=\"morelink\" onclick=\"showMoreSolutions();\">Show all " + expressions.length.toString() + " solutions</a>";
+        if (answerFurtherSolutionsDiv !== undefined) {
+            if (expressions.length < 2) {
+                answerFurtherSolutionsDiv.innerText = "This is the only " + ( away == 0 ? "" : "best ") + "solution.";
+            }
+            else {
+                answerFurtherSolutionsDiv.innerHTML = "<a id=\"showmore\" class=\"morelink\" onclick=\"showMoreSolutions();\">Show all " + expressions.length.toString() + " solutions</a>";
+            }
         }
         currentSolutionList = expressions;
     }
