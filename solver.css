@@ -315,13 +315,13 @@ div.optionscontrol label {
 
 div.optionscontrolradio {
     position: relative;
-    min-height: 6vh;
+    min-height: 5vh;
     font-size: 1.8vh;
 }
 
 div.optionscontrolradio input {
-    height: 5vh;
-    width: 5vh;
+    height: 4vh;
+    width: 4vh;
 }
 
 div.optionstextlink {
@@ -330,6 +330,7 @@ div.optionstextlink {
     min-height: 7vh;
     line-height: 7vh;
     cursor: pointer;
+    touch-action: manipulation;
     font-family: "Cabin", sans-serif;
 }
 
