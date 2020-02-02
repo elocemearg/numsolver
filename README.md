@@ -24,26 +24,65 @@ Both `runSolver()` and `runSolverAllSolutions()` take four arguments as follows:
 
 1. `selection`: the selection, as an array of integers.
 2. `target`: the target, as an integer.
-3. `progressCallback`: a function for the engine to call after each solving step with progress information. This is useful for updating a progress indicator on the page if the solve is taking a long time. Its arguments are detailed below.
-4. `finishedCallback`: a function for the engine to call when it's finished, to pass you the solution or solutions.
+3. `progressCallback`: a function for the engine to call after each solving step with progress information. This is useful for updating a progress indicator on the page if the solve is taking a long time. It may be `null`, in which case no progress information is reported. It takes a single argument which is a `SolverProgress` object, detailed below.
+4. `finishedCallback`: a function for the engine to call when it's finished, to pass you the solution or solutions. Its single argument is a `SolverResult` object, detailed below.
 
-## The progress callback
-The `progressCallback` parameter must be a function which takes three arguments. These are, in order:
-1. The number of milliseconds that have elapsed since we started this solve.
-2. The number of expressions we've generated so far.
-3. An `Expression` object for a closest solution we've found so far.
+## The `SolverProgress` object passed to `progressCallback()`
+The `progressCallback` parameter must be a function which takes a single
+argument. This is a `SolverProgress` object. Its public methods are as follows:
 
-The `progressCallback` parameter to `runSolver()` or `runSolverAllSolutions()` may be `null`, in which case no progress callback is made.
+### `getSelection()`
+Return the selection for this numbers game, as an array of integers.
 
-## The finished callback
-The `finishedCallback` parameter must be a function which takes four arguments. These are, in order:
-1. The selection which was originally passed to `runSolver()` or `runSolverAllSolutions()`.
-2. The target.
-3. An array of `Expression` objects, each of which is a best solution. If you called `runSolver()`, this array will only have one expression in it. If you called `runSolverAllSolutions()` it might have more. If there was an error, this argument is `null`.
-4. An error message, as a string. If there was no error, this is `null`. If the expression list passed as the third argument was `null`, this will be an error message string explaining why.
+### `getTarget()`
+Return the target for this numbers game, as an integer.
+
+### `getElapsedMs()`
+Return the number of milliseconds that have elapsed since we started this solve,
+up to the time the progress callback was called.
+
+### `getNumExpressionsBuilt()`
+Return the number of expressions we've generated so far.
+
+### `getBestTotalSoFar()`
+Return the best total we've found so far, as an integer.
+
+### `getNumBestSolutionsSoFar()`
+Return the number of solutions we've found so far which are equally as close
+to the target as `getBestTotalSoFar()`.
+
+## The `SolverResult` object passed to `finishedCallback()`
+The `finishedCallback` parameter must be a function which takes a single argument. This is a `SolverResult` object. Its public methods are as follows:
+
+### `getSelection()`
+Return the selection for this numbers game, as an array of integers.
+
+### `getTarget()`
+Return the target for this numbers game, as an integer.
+
+### `isSuccessful()`
+Returns `true` if we successfully produced at least one expression (which might
+not be an exact solution), or `false` if an error occurred.
+
+### `getSolutions()`
+Return an array of `Expression` objects, each of which is a best solution. If you called `runSolver()`, this array will only have one expression in it. If you called `runSolverAllSolutions()` it might have more. If there was an error, this returns `null`.
+
+### `getSolution()`
+Returns the first expression in the list returned by `getSolutions()`, or
+`null` if no solutions were found.
+
+### `getNumSolutions()`
+Return the number of best solutions found. This will be the length of the array
+returned by `getSolutions()`, or 0 if that returns `null`.
+
+### `getErrorMessage()`
+Return the error message, as a string. If there was no error, this is `null`.
+If the return value of `getSolutions()` is `null`, this error message string
+will explain why.
 
 ## The `Expression` object
-An `Expression` object is a mathematical expression which uses integers and the four elementary mathematical operations of addition, subtraction, multiplication and division. Your `finishedCallback()` is passed an array of these objects as the solution or solutions.
+An `Expression` object is a mathematical expression which uses integers and the four elementary mathematical operations of addition, subtraction, multiplication and division. The `getSolutions()` method of the `SolverResult` object passed
+to your `finishedCallback()` returns an array of these objects as the solution or solutions.
 
 It has many different methods and fields (depending on which `runSolver*()` function you called), but an `Expression` object will always have the following methods, which your interface should use:
 
