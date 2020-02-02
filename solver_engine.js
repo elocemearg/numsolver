@@ -475,12 +475,26 @@ class OrderedExpression extends Expression {
 }
 
 
+/* SolverState: keeps track of where we are in a solve so that we can stop,
+ * do something else, then dive back into it. */
 class SolverState {
     constructor(progressCallback, finishedCallback, fastSolve) {
         this.startTime = Date.now();
         this.selection = null;
         this.target = null;
+
+        /* We call this after we've completed a step() to give the caller an
+         * idea of how things are going. The arguments are the number of
+         * milliseconds elapsed since we started on this solve, the number of
+         * expressions we've generated, and an Expression object which is
+         * (one of) the closest to the target we've found so far. */
         this.progressCallback = progressCallback;
+
+        /* We call this when we've finished. The first argument is the
+         * starting selection, the second argument is the target, the third
+         * argument is a list of Expressions (or null if there was an error),
+         * and the fourth argument is an error message as a string (or null if
+         * there was no error). */
         this.finishedCallback = finishedCallback;
 
         /* expressions: map of expression length to list of expressions of
@@ -546,19 +560,19 @@ class SolverState {
         this.target = target;
         
         if (this.selection.length < 2 || this.selection.length > SELECTION_MAX) {
-            this.finishedCallback(null, target, "Selection must contain between 2 and " + SELECTION_MAX.toString() + " numbers.");
+            this.finishedCallback(selection, target, null, "Selection must contain between 2 and " + SELECTION_MAX.toString() + " numbers.");
             this.reset();
             return;
         }
 
         if (isNaN(target)) {
-            this.finishedCallback(null, target, "Target is not a number.");
+            this.finishedCallback(selection, target, null, "Target is not a number.");
             this.reset();
             return;
         }
 
         if (target <= 0) {
-            this.finishedCallback(null, target, "Target must be a positive integer.");
+            this.finishedCallback(selection, target, null, "Target must be a positive integer.");
             this.reset();
             return;
         }
@@ -588,7 +602,7 @@ class SolverState {
                 if (this.fastSolve) {
                     /* If the target is in the selection, just return the single
                      * expression containing that number */
-                    this.finishedCallback([exp], target, null);
+                    this.finishedCallback(selection, target, [exp], null);
                     this.reset();
                     return;
                 }
@@ -730,7 +744,7 @@ class SolverState {
 
                                     if (this.fastSolve) {
                                         if (this.finishedCallback != null) {
-                                            this.finishedCallback([newExp], this.target, null);
+                                            this.finishedCallback(this.selection, this.target, [newExp], null);
                                         }
                                         this.reset();
                                         return;
@@ -885,7 +899,7 @@ class SolverState {
                 + this.numExpressions +  " expressions, " +
                 timeMs.toString() + "ms.");
         if (this.finishedCallback != null) {
-            this.finishedCallback(this.fastSolve ? [this.nearestExp] : this.nearestExpList, this.target, null);
+            this.finishedCallback(this.selection, this.target, this.fastSolve ? [this.nearestExp] : this.nearestExpList, null);
         }
         this.reset();
     }
@@ -910,9 +924,13 @@ class SolverState {
     }
 }
 
-/* selection is an array of integers, and target is an integer.
+/* solverRun() and solverRunAllSolutions() are the public-facing calls from
+ * this file.
  *
- * This runs the solve process in the background using setTimeout() calls.
+ * selection is an array of integers, and target is an integer.
+ *
+ * These functions run the solve process in the background using setTimeout()
+ * calls.
  *
  * Every mumblemumble milliseconds, progressCallback() will be called with
  * the number of milliseconds elapsed so far, the number of expressions we
@@ -920,15 +938,16 @@ class SolverState {
  *
  * When a solution is found, or if we determine there is no exact solution,
  * finishedCallback() will be called with the following arguments, in order:
- *     1. This is an array of Expression objects, one for each solution found.
+ *     1. The selection, as an array of numbers.
+ *     2. The target, as a number.
+ *     3. An array of Expression objects, one for each solution found.
  *        Note that if the solve was started by solverRun(), the solver is run
  *        in fast mode and it will stop as soon as it finds an exact solution.
  *        If there is no exact solution, one best solution will be returned.
  *        In either case, if the solve was started by solverRun() there will be
  *        only one element in this array.
  *        If there was an error, this is null.
- *     2. The target, as a number.
- *     3. An error message (a string). If the expression parameter is null,
+ *     4. An error message (a string). If the expressions parameter is null,
  *        this will explain why. If there was no error, this is null.
  *
  * In fast mode (solverRun()) we make no attempt to find "all" the solutions to

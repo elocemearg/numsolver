@@ -94,7 +94,7 @@ function addMethodDiv(parentDiv, expression) {
     parentDiv.appendChild(methodDiv);
 }
 
-function showSolveResult(expressionList, target, errorMessage) {
+function showSolveResult(selection, target, expressionList, errorMessage) {
     var answerDiv = document.getElementById("answerdiv");
     var expression;
 
@@ -127,19 +127,19 @@ function showSolveResult(expressionList, target, errorMessage) {
     updateControls();
 }
 
-function showSolveResultList(expressions, target, errorMessage) {
+function showSolveResultList(selection, target, expressions, errorMessage) {
     if (expressions == null) {
-        showSolveResult(null, target, errorMessage);
+        showSolveResult(selection, target, null, errorMessage);
         currentSolutionList = [];
     }
     else if (expressions.length == 0) {
-        showSolveResult(null, target, "No solutions found.");
+        showSolveResult(selection, target, null, "No solutions found.");
         currentSolutionList = [];
     }
     else {
         var away = Math.abs(expressions[0].getValue() - target);
         var answerDiv = document.getElementById("answerdiv");
-        showSolveResult(expressions, target, errorMessage);
+        showSolveResult(selection, target, expressions, errorMessage);
 
         var answerFurtherSolutionsDiv = document.getElementById("answerfurthersolutions");
         if (expressions.length < 2) {
@@ -432,7 +432,7 @@ function buttonPress(button) {
     else if (uiState == SHOWING_ALL) {
         if (button < 0) {
             if (currentSolutionList.length > 0) {
-                showSolveResultList(currentSolutionList, currentTarget, null);
+                showSolveResultList(currentSelection, currentTarget, currentSolutionList, null);
             }
             else {
                 uiState = FINISHED;

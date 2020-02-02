@@ -59,7 +59,7 @@ function makeTestReportPreamble(testNum, testCase) {
             selectionString + " -> " + testCase.target.toString() + " ... ";
 }
 
-function testFinishedAllSolutions(expressions, target, errorMsg) {
+function testFinishedAllSolutions(selection, target, expressions, errorMsg) {
     var testCase = testCases[testNum];
     var failed = false;
     var testReport = makeTestReportPreamble(testNum, testCase);
@@ -87,7 +87,7 @@ function testFinishedAllSolutions(expressions, target, errorMsg) {
     testFinishedTail(failed, testReport);
 }
 
-function testFinished(expressions, target, errorMsg) {
+function testFinished(selection, target, expressions, errorMsg) {
     var testCase = testCases[testNum];
     var failed = false;
     var testReport = makeTestReportPreamble(testNum, testCase);
