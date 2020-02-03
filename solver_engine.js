@@ -619,7 +619,7 @@ class SolverState {
          * update the interface to tell the user a solve is in progress (e.g.
          * disable buttons, set a label to "please wait", etc).
          */
-        this.startDelayMs = 30;
+        this.startDelayMs = 10;
 
         /* The length of expression step() is currently looking to generate. */
         this.soughtExpressionLength = 1;
@@ -761,9 +761,17 @@ class SolverState {
         for (; this.soughtExpressionLength <= this.selection.length; this.soughtExpressionLength++) {
             /* If we're generating expressions of length N, we first want
              * expression pairs of length 1 and N-1, then 2 and N-2, and so on
-             * until N-1 and 1. That will generate us all the valid expressions
-             * of length N. */
-            for (; this.expLength1 < this.soughtExpressionLength; this.expLength1++) {
+             * until (N-1)/2 and (N+1)/2 (if N is odd) or N/2 and N/2 (if N is
+             * even).
+             * We don't need to go all the way up to N-1 and 1, because that
+             * will just give us the same pairs we've already done but the
+             * other way round. For addition or multiplication we don't care
+             * which way round the expressions are, and for subtraction and
+             * division it's only valid one way round - we'll make sure to put
+             * the larger number first.
+             * This generates us all the valid expressions of length N. */
+            var expLength1Max = Math.floor(this.soughtExpressionLength / 2);
+            for (; this.expLength1 <= expLength1Max; this.expLength1++) {
                 this.expLength2 = this.soughtExpressionLength - this.expLength1;
                 //console.log("expLength1 " + this.expLength1.toString() + ", expLength2 " + this.expLength2.toString());
 
@@ -787,14 +795,24 @@ class SolverState {
                             var leftValue = exp1.getValue();
                             var rightValue = exp2.getValue();
 
+                            /* Put the larger number on the left hand side of
+                             * the operator in all cases.
+                             * For addition and multiplication this won't
+                             * matter, and for subtraction and division we're
+                             * required to have them that way round by the
+                             * rules. */
+                            if (leftValue < rightValue) {
+                                var tmp = leftValue;
+                                leftValue = rightValue;
+                                rightValue = tmp;
+                                tmp = exp1;
+                                exp1 = exp2;
+                                exp2 = tmp;
+                            }
+
                             /* Generate a new expression using these two
                              * expressions for each of the operations +-*/
                             for (var op = 0; op < 4; ++op) {
-                                /* We don't ever need to take a larger value
-                                 * away from a smaller one. */
-                                if (op == MINUS && leftValue <= rightValue)
-                                    continue;
-
                                 /* Also we don't need to divide by 1, or divide
                                  * A by B if A isn't a multiple of B. */
                                 if (op == DIVIDE && (rightValue < 2 || leftValue % rightValue != 0))
@@ -821,15 +839,7 @@ class SolverState {
                                 var newExp;
 
                                 if (this.fastSolve) {
-                                    /* Personal style: for addition and
-                                     * multiplication, put the larger number on
-                                     * the left. */
-                                    if ((op == PLUS || op == TIMES) && exp1.getValue() < exp2.getValue()) {
-                                        newExp = new BinaryTreeExpression(exp2, exp1, op);
-                                    }
-                                    else {
-                                        newExp = new BinaryTreeExpression(exp1, exp2, op);
-                                    }
+                                    newExp = new BinaryTreeExpression(exp1, exp2, op);
                                 }
                                 else {
                                     newExp = new OrderedExpression(exp1, exp2, op);
