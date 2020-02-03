@@ -121,7 +121,10 @@ function showSolveResultAux(selection, target, expressionList, errorMessage) {
         var answerFurtherSolutionsDiv = document.createElement("div");
         answerFurtherSolutionsDiv.className = "answerfurthersolutions";
         answerFurtherSolutionsDiv.id = "answerfurthersolutions";
-        answerFurtherSolutionsDiv.innerHTML = "<a id=\"showmore\" class=\"morelink\" onclick=\"findAllSolutionsForCurrentPuzzle();\">Search for more solutions</a>";
+
+        if (selection.length <= SELECTION_MAX_FULL) {
+            answerFurtherSolutionsDiv.innerHTML = "<a id=\"showmore\" class=\"morelink\" onclick=\"findAllSolutionsForCurrentPuzzle();\">Search for more solutions</a>";
+        }
         answerDiv.appendChild(answerFurtherSolutionsDiv);
     }
 
@@ -348,7 +351,7 @@ function updateControls() {
 
     if (uiState == REQUEST_SELECTION) {
         mainButton.innerText = "Next";
-        if (currentSelection.length >= 2 && currentSelection.length <= SELECTION_MAX) {
+        if (currentSelection.length >= 2) {
             setButtonEnabled(mainButton, true);
         }
         else {
@@ -409,7 +412,9 @@ function onFocusTargetBox() {
 }
 
 function addNumberToSelection(number) {
-    if (currentSelection.length < SELECTION_MAX) {
+    var solveStrategyAll = document.getElementById("solvestrategyall");
+    var selectionMax = (solveStrategyAll.checked ? SELECTION_MAX_FULL : SELECTION_MAX_FAST);
+    if (currentSelection.length < selectionMax) {
         currentSelection.push(number);
     }
 }

@@ -16,7 +16,8 @@ const operatorTypes = [ PLUS_MINUS, PLUS_MINUS, TIMES_DIVIDE, TIMES_DIVIDE, NUMB
 /* The maximum number of numbers allowed in the selection. If you increase
  * this, the worst-case time to find a solution (or determine no exact
  * solution exists) gets bigger by a surprisingly large amount. */
-const SELECTION_MAX = 8;
+const SELECTION_MAX_FAST = 8;
+const SELECTION_MAX_FULL = 7;
 
 /* SolverResults object, passed to the user's finishedCallback function. */
 class SolverResults {
@@ -192,7 +193,7 @@ class SingleNumber extends Expression {
         super();
         this.value = value;
         this.selectionMask = selectionMask;
-        this.numbersUsed = {};
+        this.numbersUsed = [];
         this.numbersUsed[value] = 1;
     }
 
@@ -292,7 +293,7 @@ function mergeExpressionLists(list1, list2) {
 class OrderedExpression extends Expression {
     constructor(leftExp, rightExp, operator) {
         super();
-        this.numbersUsed = {};
+        this.numbersUsed = [];
         var leftNumsUsed = leftExp.getNumbersUsed();
         var rightNumsUsed = rightExp.getNumbersUsed();
         for (var n in leftNumsUsed) {
@@ -470,7 +471,7 @@ class OrderedExpression extends Expression {
 
     isCompatible(otherExp, selectionCounts) {
         var otherCounts = otherExp.getNumbersUsed();
-        var totalCounts = {};
+        var totalCounts = [];
         
         for (var n in this.numbersUsed) {
             if (n in totalCounts)
@@ -577,7 +578,7 @@ class SolverState {
 
         /* expressions: map of expression length to list of expressions of
          * that length. "length" is the number of numbers used. */
-        this.expressions = {};
+        this.expressions = [];
 
         /* Number of expressions we've added to the expressions map so far
          * in this solve. */
@@ -592,7 +593,7 @@ class SolverState {
          * If fastSolve is false, this is instead a map of result
          * values to sets of expression strings.
          */
-        this.resultMap = {};
+        this.resultMap = [];
 
         /* The expression which gets us closest to the target so far. */
         this.nearestExp = null;
@@ -624,24 +625,36 @@ class SolverState {
         this.soughtExpressionLength = 1;
 
         /* How many we have of each number. */
-        this.selectionCounts = {};
+        this.selectionCounts = [];
 
         /* If fastSolve is true, we eliminate redundant expressions
          * aggressively and return the first optimal solution we find.
          * If fastSolve is false, we only eliminate equivalent expressions and
          * we return all the optimal solutions. */
         this.fastSolve = fastSolve;
+
+        this.selectionMax = (fastSolve ? SELECTION_MAX_FAST : SELECTION_MAX_FULL);
     }
 
     start(selection, target) {
         this.selection = selection;
         this.target = target;
         
-        if (this.selection.length < 2 || this.selection.length > SELECTION_MAX) {
+        if (this.selection.length < 2) {
             this.finishedCallback(
                     new SolverResults(
                         selection, target, null,
-                        "Selection must contain between 2 and " + SELECTION_MAX.toString() + " numbers."
+                        "Selection must contain at least 2 numbers."
+                    )
+            );
+            this.reset();
+            return;
+        }
+        else if (this.selection.length > this.selectionMax) {
+            this.finishedCallback(
+                    new SolverResults(
+                        selection, target, null,
+                        "Selection may not contain more than " + this.selectionMax.toString() + " numbers" + (this.fastSolve ? "." : " in all-solutions mode.")
                     )
             );
             this.reset();
@@ -807,10 +820,10 @@ class SolverState {
 
                                 var newExp;
 
-                                /* Personal style: for addition and
-                                 * multiplication, put the larger number on
-                                 * the left. */
                                 if (this.fastSolve) {
+                                    /* Personal style: for addition and
+                                     * multiplication, put the larger number on
+                                     * the left. */
                                     if ((op == PLUS || op == TIMES) && exp1.getValue() < exp2.getValue()) {
                                         newExp = new BinaryTreeExpression(exp2, exp1, op);
                                     }
@@ -851,7 +864,22 @@ class SolverState {
                                 }
 
                                 var addExp = true;
-                                if (this.fastSolve) {
+
+                                /* If this is an N-number expression, where N
+                                 * is the number of numbers in the selection,
+                                 * then if this expression's value is further
+                                 * away than the best solution we have so far
+                                 * then we don't need it - we're never going
+                                 * to need to combine it with another
+                                 * expression because expressions can't be
+                                 * longer than this. */
+                                if (this.soughtExpressionLength == this.selection.length && this.nearestExp != null) {
+                                    if (Math.abs(resultValue - this.target) > Math.abs(this.nearestExp.getValue() - this.target)) {
+                                        addExp = false;
+                                    }
+                                }
+
+                                if (addExp && this.fastSolve) {
                                     var selectionMask = newExp.getSelectionMask();
                                     /* Get the list of selection masks which we
                                      * already know we can use to make
@@ -898,7 +926,7 @@ class SolverState {
                                         resultExistingMasks.push(selectionMask);
                                     }
                                 }
-                                else {
+                                else if (addExp) {
                                     /* Not in fast-solve mode, so because all
                                      * the expressions we've generated have
                                      * had their reorderable components in a
@@ -921,6 +949,7 @@ class SolverState {
                                         resultExistingStrings[newExp.toString()] = true;
                                     }
                                 }
+
 
                                 if (addExp) {
                                     this.addExpressionToList(newExp);
