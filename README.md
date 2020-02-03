@@ -18,9 +18,9 @@ This solver is not affiliated with or endorsed by Countdown or anyone connected 
 
 This section is intended for developers who want to use the solver engine in their own projects.
 
-`solver_engine.js` is the backend, which can be repurposed to whatever other interface you have. Its public-facing functions are `runSolver()` and `runSolverAllSolutions()`. Both of these functions return immediately and start the solve process in the background using JavaScript's `setTimeout()` call. When the solve process is finished, the result is delivered to the application using a callback.
+`solver_engine.js` is the backend, which can be repurposed to whatever other interface you have. Its public-facing functions are `solverRun()` and `solverRunAllSolutions()`. Both of these functions return immediately and start the solve process in the background using JavaScript's `setTimeout()` call. When the solve process is finished, the result is delivered to the application using a callback.
 
-Both `runSolver()` and `runSolverAllSolutions()` take four arguments as follows:
+Both `solverRun()` and `solverRunAllSolutions()` take four arguments as follows:
 
 1. `selection`: the selection, as an array of integers.
 2. `target`: the target, as an integer.
@@ -66,7 +66,7 @@ Returns `true` if we successfully produced at least one expression (which might
 not be an exact solution), or `false` if an error occurred.
 
 ### `getSolutions()`
-Return an array of `Expression` objects, each of which is a best solution. If you called `runSolver()`, this array will only have one expression in it. If you called `runSolverAllSolutions()` it might have more. If there was an error, this returns `null`.
+Return an array of `Expression` objects, each of which is a best solution. If you called `solverRun()`, this array will only have one expression in it. If you called `solverRunAllSolutions()` it might have more. If there was an error, this returns `null`.
 
 ### `getSolution()`
 Returns the first expression in the list returned by `getSolutions()`, or
@@ -85,7 +85,7 @@ will explain why.
 An `Expression` object is a mathematical expression which uses integers and the four elementary mathematical operations of addition, subtraction, multiplication and division. The `getSolutions()` method of the `SolverResult` object passed
 to your `finishedCallback()` returns an array of these objects as the solution or solutions.
 
-It has many different methods and fields (depending on which `runSolver*()` function you called), but an `Expression` object will always have the following methods, which your interface should use:
+It has many different methods and fields (depending on which `solverRun*()` function you called), but an `Expression` object will always have the following methods, which your interface should use:
 
 ### `getValue()`
 Return the integer result of this expression. For example, if the expression is `(100 + 5) * 7`, `getValue()` will return `735`.
