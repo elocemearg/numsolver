@@ -71,14 +71,14 @@
                     <h1>Technical information</h1>
                     <p>
                     In <span style="font-weight: bold;">fast</span> mode,
-                    the solver will aggressively
+                    the solver will only produce one solution, and aggressively
                     discard expressions it considers redundant. In this mode,
                     an expression is redundant if another expression has
                     already been calculated which comes to the same total and
-                    which uses the same set, or a subset, of the starting
-                    numbers. In fast mode, the solver stops as soon as it
-                    finds an exact solution or determines that no exact
-                    solution is available.
+                    which uses the same set, or a subset, of the numbers. The
+                    solver stops as soon as it finds an exact solution, or when
+                    it determines that no exact solution is possible in which
+                    case it will give the closest possible solution.
                     </p>
                     <p>
                     In <span style="font-weight: bold;">full</span> mode,
@@ -90,7 +90,14 @@
                     distinct solutions to the puzzle.
                     </p>
                     <p>
-                    In either mode, trivially redundant operations which are
+                    In all cases, the first solution given by the solver is
+                    always the closest it is possible to get to the target
+                    and uses the fewest possible operations. Alternative
+                    solutions which are equally close and equally long may
+                    exist.
+                    </p>
+                    <p>
+                    Trivially redundant operations which are
                     never useful in Countdown are always ignored. These include
                     multiplying or dividing by 1, or any expression equivalent
                     to 2x&nbsp;&minus;&nbsp;x or x&sup2;&nbsp;/&nbsp;x.
