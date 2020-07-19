@@ -186,6 +186,11 @@ class BinaryTreeExpression extends Expression {
     isAtom() {
         return false;
     }
+
+    isUseless() {
+        /* We don't do uselessness analysis with BinaryTreeExpression */
+        return false;
+    }
 }
 
 class SingleNumber extends Expression {
@@ -258,6 +263,10 @@ class SingleNumber extends Expression {
             return otherExp.getValue() - this.value;
         }
     }
+
+    isUseless() {
+        return false;
+    }
 }
 
 function isPositiveOperator(op) {
@@ -286,6 +295,32 @@ function mergeExpressionLists(list1, list2) {
         output = output.concat(list2.slice(pos2));
     }
     return output;
+}
+
+function subsetSumEqualsValue(numbers, total, numbersStart=0) {
+    for (let i = numbersStart; i < numbers.length; ++i) {
+        if (numbers[i] == total) {
+            return true;
+        }
+        if (numbers[i] < total && subsetSumEqualsValue(numbers, total - numbers[i], i + 1)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function subsetProductEqualsValue(numbers, product, numbersStart=0) {
+    for (let i = numbersStart; i < numbers.length; ++i) {
+        if (numbers[i] == product) {
+            return true;
+        }
+        if (numbers[i] < product && (product % numbers[i]) == 0) {
+            if (subsetProductEqualsValue(numbers, product / numbers[i], i + 1)) {
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 /* In find-all-solutions mode, all expressions are either OrderedExpressions
@@ -386,6 +421,63 @@ class OrderedExpression extends Expression {
 
     getRightExpressionList() {
         return this.rightExpressions.slice();
+    }
+
+    isUseless() {
+        /* If this is a subtraction operation, then if the value of the right
+         * is equal to half of any of the added terms on the left, this
+         * operation is trivially optimisable. For example, (100 + 10) - 5 is
+         * trivially optimisable to 100 + 5. */
+        if (this.operatorType == PLUS_MINUS && this.rightExpressions.length > 0) {
+            let rightTotal = 0;
+            for (let i = 0; i < this.rightExpressions.length; ++i) {
+                rightTotal += this.rightExpressions[i].getValue();
+            }
+
+            let leftValues = [];
+            for (let i = 0; i < this.leftExpressions.length; ++i) {
+                if (this.leftExpressions[i].getValue() == rightTotal * 2) {
+                    return true;
+                }
+                leftValues.push(this.leftExpressions[i].getValue());
+            }
+
+            /* If any subset of the numbers on the left sum to the value of
+             * this expression, then it is useless. For example,
+             * 100 + 7 + 2 - (3 + 4) is useless because 100 + 2 = 102 and we
+             * can remove the 7 and the (3 + 4). */
+            let myValue = this.getValue();
+            if (subsetSumEqualsValue(leftValues, myValue)) {
+                return true;
+            }
+        }
+        else if (this.operatorType == TIMES_DIVIDE && this.rightExpressions.length > 0) {
+            /* Also if we have something like (100 * 25) / 5, that's trivially
+             * optimisable to 100 * 5. */
+            let rightTotal = 1;
+            for (let i = 0; i < this.rightExpressions.length; ++i) {
+                rightTotal *= this.rightExpressions[i].getValue();
+            }
+
+            let leftValues = [];
+            for (let i = 0; i < this.leftExpressions.length; ++i) {
+                if (this.leftExpressions[i].getValue() == rightTotal * rightTotal) {
+                    return true;
+                }
+                leftValues.push(this.leftExpressions[i].getValue());
+            }
+
+            /* If any subset of numbers on the left multiply to the value of
+             * this expression, we're useless. This identifies e.g.
+             * (100 * 5 * 6 * 10) / 50 = 600. We can remove the 5, the 10, and
+             * indeed the division. */
+
+            let myValue = this.getValue();
+            if (subsetProductEqualsValue(leftValues, myValue)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     getValue() {
@@ -844,6 +936,11 @@ class SolverState {
                                 else {
                                     newExp = new OrderedExpression(exp1, exp2, op);
                                 }
+
+                                if (newExp.isUseless()) {
+                                    continue;
+                                }
+
                                 var resultValue = newExp.getValue();
 
                                 if (resultValue == this.target) {
