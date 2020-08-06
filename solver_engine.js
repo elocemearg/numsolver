@@ -19,17 +19,25 @@ const operatorTypes = [ PLUS_MINUS, PLUS_MINUS, TIMES_DIVIDE, TIMES_DIVIDE, NUMB
 const SELECTION_MAX_FAST = 8;
 const SELECTION_MAX_FULL = 7;
 
+const STRATEGY_FAST_CUT = 0;
+const STRATEGY_FAST = 1;
+const STRATEGY_ALL_SOLUTIONS = 2;
+
 /* SolverResults object, passed to the user's finishedCallback function. */
 class SolverResults {
-    constructor(selection, target, expressions, errorMessage) {
+    constructor(selection, target, nearestExpressions, otherExpressions, errorMessage) {
         this.selection = selection.slice();
         this.target = target;
-        this.expressions = expressions;
+        this.nearestExpressions = nearestExpressions;
         this.errorMessage = errorMessage;
+        if (otherExpressions == null) {
+            otherExpressions = {};
+        }
+        this.otherExpressions = otherExpressions;
     }
 
     isSuccessful() {
-        return this.expressions != null && this.expressions.length > 0;
+        return this.errorMessage == null;
     }
 
     getSelection() {
@@ -41,23 +49,27 @@ class SolverResults {
     }
 
     getSolutions() {
-        return this.expressions;
+        return this.nearestExpressions;
     }
 
     getSolution() {
-        if (this.expressions == null || this.expressions.length == 0) {
+        if (this.nearestExpressions == null || this.nearestExpressions.length == 0) {
             return null;
         }
         else {
-            return this.expressions[0];
+            return this.nearestExpressions[0];
         }
     }
 
+    getImperfectSolutions() {
+        return this.otherExpressions;
+    }
+
     getNumSolutions() {
-        if (this.expressions == null)
+        if (this.nearestExpressions == null)
             return 0;
         else
-            return this.expressions.length;
+            return this.nearestExpressions.length;
     }
 
     getErrorMessage() {
@@ -68,13 +80,14 @@ class SolverResults {
 /* SolverProgress object, passed to the user's progressCallback function if it
  * was defined. */
 class SolverProgress {
-    constructor(selection, target, msElapsed, numExpressions, bestTotalSoFar, numBestSolutions) {
+    constructor(selection, target, msElapsed, numExpressions, bestTotalSoFar, numBestSolutions, bestSolution=null) {
         this.selection = selection.slice();
         this.target = target;
         this.msElapsed = msElapsed;
         this.numExpressions = numExpressions;
         this.bestTotalSoFar = bestTotalSoFar;
         this.numBestSolutions = numBestSolutions;
+        this.bestSolution = bestSolution;
     }
 
     getSelection() {
@@ -100,6 +113,10 @@ class SolverProgress {
     getNumBestSolutionsSoFar() {
         return this.numBestSolutions;
     }
+
+    getBestSolutionSoFar() {
+        return this.bestSolution;
+    }
 }
 
 class Expression {
@@ -115,6 +132,7 @@ class BinaryTreeExpression extends Expression {
         this.operator = operator;
         this.value = null;
         this.selectionMask = null;
+        this.selectionMaskList = null;
         this.countNumbersUsed = null;
     }
 
@@ -125,7 +143,14 @@ class BinaryTreeExpression extends Expression {
         return this.selectionMask;
     }
 
-    isCompatible(otherExp, ignored) {
+    getSelectionMaskList() {
+        if (this.selectionMaskList == null) {
+            this.selectionMaskList = [ this.getSelectionMask() ];
+        }
+        return this.selectionMaskList;
+    }
+
+    isCompatible(otherExp) {
         return (this.selectionMask & otherExp.getSelectionMask()) == 0;
     }
 
@@ -183,6 +208,23 @@ class BinaryTreeExpression extends Expression {
         return leftStr + " " + operatorSymbols[this.operator] + " " + rightStr;
     }
 
+    getOperatorString() {
+        return operatorSymbols[this.getOperator()];
+    }
+
+    toStringDescriptive() {
+        let str = "";
+        if (!this.leftExp.isAtom()) {
+            str += this.leftExp.toStringDescriptive() + " = " + this.leftExp.getValue() + "\n";
+        }
+        if (!this.rightExp.isAtom()) {
+            str += this.rightExp.toStringDescriptive() + " = " + this.rightExp.getValue() + "\n";
+        }
+        str += this.leftExp.getValue().toString() + " " +
+            this.getOperatorString() + " " + this.rightExp.getValue().toString() + " = " + this.getValue().toString();
+        return str;
+    }
+
     isAtom() {
         return false;
     }
@@ -198,12 +240,17 @@ class SingleNumber extends Expression {
         super();
         this.value = value;
         this.selectionMask = selectionMask;
+        this.selectionMaskList = [selectionMask];
         this.numbersUsed = [];
         this.numbersUsed[value] = 1;
     }
 
     getSelectionMask() {
         return this.selectionMask;
+    }
+
+    getSelectionMaskList() {
+        return this.selectionMaskList;
     }
 
     getValue() {
@@ -226,12 +273,12 @@ class SingleNumber extends Expression {
         return 1;
     }
 
-    getNumbersUsed() {
-        return this.numbersUsed;
-    }
-
     toString() {
         return this.value.toString();
+    }
+
+    toStringDescriptive() {
+        return this.toString();
     }
 
     isAtom() {
@@ -246,12 +293,17 @@ class SingleNumber extends Expression {
         return [];
     }
 
-    isCompatible(otherExp, selectionCounts) {
+    isCompatible(otherExp) {
         if (otherExp.isAtom()) {
             return (otherExp.selectionMask & this.selectionMask) == 0;
         }
         else {
-            return otherExp.isCompatible(this, selectionCounts);
+            let otherMasks = otherExp.getSelectionMaskList();
+            for (let i = 0; i < otherMasks.length; ++i) {
+                if ((otherMasks[i] & this.selectionMask) == 0)
+                    return true;
+            }
+            return false;
         }
     }
 
@@ -266,6 +318,10 @@ class SingleNumber extends Expression {
 
     isUseless() {
         return false;
+    }
+
+    getOperatorString() {
+        return "";
     }
 }
 
@@ -328,18 +384,26 @@ function subsetProductEqualsValue(numbers, product, numbersStart=0) {
 class OrderedExpression extends Expression {
     constructor(leftExp, rightExp, operator) {
         super();
-        this.numbersUsed = [];
-        var leftNumsUsed = leftExp.getNumbersUsed();
-        var rightNumsUsed = rightExp.getNumbersUsed();
-        for (var n in leftNumsUsed) {
-            this.numbersUsed[n] = leftNumsUsed[n];
-        }
-        for (var n in rightNumsUsed) {
-            if (n in this.numbersUsed) {
-                this.numbersUsed[n] = this.numbersUsed[n] + rightNumsUsed[n];
-            }
-            else {
-                this.numbersUsed[n] = rightNumsUsed[n];
+
+        /* Each expression can have a number of bitmasks, in which each bit
+         * represents a starting number used. The reason an expression can have
+         * more than one bitmask is because there could be repeated numbers
+         * in the selection, and we can use either. For example, if the
+         * selection is [ 100, 4, 5, 5, 9, 3 ], and our selection uses the
+         * 4, 5 and 9, our masks would be [ 0b011010, 0b010110 ] because we
+         * could use either 5.
+         *
+         * This ensures we're always considered compatible with any other
+         * expression that uses one 5 - it doesn't matter "which" 5 we use.
+         * */
+        this.selectionMasks = [];
+        let leftMasks = leftExp.getSelectionMaskList();
+        let rightMasks = rightExp.getSelectionMaskList();
+        for (let i = 0; i < leftMasks.length; ++i) {
+            for (let j = 0; j < rightMasks.length; ++j) {
+                if ((leftMasks[i] & rightMasks[j]) == 0) {
+                    this.selectionMasks.push(leftMasks[i] | rightMasks[j]);
+                }
             }
         }
 
@@ -413,6 +477,47 @@ class OrderedExpression extends Expression {
 
     isAtom() {
         return false;
+    }
+
+    getOneSideExpression(additive, start=0, end=null) {
+        let expList;
+        let length;
+
+        if (additive)
+            expList = this.leftExpressions;
+        else
+            expList = this.rightExpressions;
+
+        if (end === null) {
+            end = expList.length;
+        }
+        length = end - start;
+        if (length <= 0) {
+            return null;
+        }
+        else if (length == 1) {
+            return expList[start];
+        }
+        else {
+            let subOp;
+            if (this.operatorType == PLUS_MINUS) {
+                subOp = PLUS;
+            }
+            else {
+                subOp = TIMES;
+            }
+            let left = this.getOneSideExpression(additive, start, start + Math.floor(length / 2));
+            let right = this.getOneSideExpression(additive, start + Math.floor(length / 2), end);
+            return new OrderedExpression(left, right, subOp);
+        }
+    }
+
+    getAdditiveSideExpression() {
+        return this.getOneSideExpression(true);
+    }
+
+    getSubtractiveSideExpression() {
+        return this.getOneSideExpression(false);
     }
 
     getLeftExpressionList() {
@@ -509,16 +614,36 @@ class OrderedExpression extends Expression {
         return this.value;
     }
 
-    getNumbersUsed() {
-        return this.numbersUsed;
-    }
-
     getCountNumbersUsed() {
         return this.countNumbersUsed;
     }
 
     getOperatorType() {
         return this.operatorType;
+    }
+
+    getOperator() {
+        /* Get binary operator, PLUS, MINUS, TIMES or DIVIDE */
+        if (this.operatorType == PLUS_MINUS) {
+            if (this.rightExpressions.length == 0) {
+                return PLUS;
+            }
+            else {
+                return MINUS;
+            }
+        }
+        else {
+            if (this.rightExpressions.length == 0) {
+                return TIMES;
+            }
+            else {
+                return DIVIDE;
+            }
+        }
+    }
+
+    getOperatorString() {
+        return operatorSymbols[this.getOperator()];
     }
 
     joinExps(expList, opStr, bracketSubExps) {
@@ -561,31 +686,76 @@ class OrderedExpression extends Expression {
         return this.stringValue;
     }
 
-    isCompatible(otherExp, selectionCounts) {
-        var otherCounts = otherExp.getNumbersUsed();
-        var totalCounts = [];
-        
-        for (var n in this.numbersUsed) {
-            if (n in totalCounts)
-                totalCounts[n] += this.numbersUsed[n];
-            else
-                totalCounts[n] = this.numbersUsed[n];
+    toStringDescriptive() {
+        let expLists = [ this.leftExpressions, this.rightExpressions ];
+        let desc = "";
+        let runningTotal;
+        let expCount = 0;
+        let operators;
+
+        if (this.operatorType == TIMES_DIVIDE) {
+            runningTotal = 1;
+            operators = [ "*", "/" ];
         }
-        
-        for (var n in otherCounts) {
-            if (n in totalCounts)
-                totalCounts[n] += otherCounts[n];
-            else
-                totalCounts[n] = otherCounts[n];
+        else {
+            runningTotal = 0;
+            operators = [ "+", "-" ];
         }
 
-        for (var n in totalCounts) {
-            if (totalCounts[n] > 0 && (!(n in selectionCounts) || selectionCounts[n] < totalCounts[n])) {
-                return false;
+        for (let l = 0; l < 2; ++l) {
+            let expList = expLists[l];
+            for (let i = 0; i < expList.length; ++i) {
+                let exp = expList[i];
+                if (!exp.isAtom()) {
+                    desc += exp.toStringDescriptive();
+                }
+
+                if (expCount > 0) {
+                    desc += runningTotal.toString() + " " + operators[l] +
+                        " " + exp.getValue().toString() + " = ";
+                }
+
+                if (this.operatorType == TIMES_DIVIDE) {
+                    if (l == 0)
+                        runningTotal *= exp.getValue();
+                    else
+                        runningTotal /= exp.getValue();
+                }
+                else {
+                    if (l == 0)
+                        runningTotal += exp.getValue();
+                    else
+                        runningTotal -= exp.getValue();
+                }
+
+                if (expCount > 0) {
+                    desc += runningTotal.toString() + "\n";
+                }
+
+                ++expCount;
             }
         }
 
-        return true;
+        return desc;
+    }
+
+    getSelectionMaskList() {
+        return this.selectionMasks;
+    }
+
+    isCompatible(otherExp) {
+        /* If there exists a pair of used-numbers bitmasks, one from our list
+         * and one from otherExp's list, which don't have any bits in common,
+         * then we're compatible. */
+        let otherMasks = otherExp.getSelectionMaskList();
+        for (let i = 0; i < this.selectionMasks.length; ++i) {
+            for (let j = 0; j < otherMasks.length; ++j) {
+                if ((this.selectionMasks[i] & otherMasks[j]) == 0) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /* Decide whether this expression should go before or after otherExp in
@@ -654,7 +824,7 @@ class OrderedExpression extends Expression {
 /* SolverState: keeps track of where we are in a solve so that we can stop,
  * do something else, then dive back into it. */
 class SolverState {
-    constructor(progressCallback, finishedCallback, fastSolve) {
+    constructor(progressCallback, finishedCallback, strategy) {
         this.startTime = Date.now();
         this.selection = null;
         this.target = null;
@@ -682,15 +852,18 @@ class SolverState {
          * the second and fourth starting number (9, binary 1010) and also
          * from the third and fourth starting number (12, binary 1100).
          *
-         * If fastSolve is false, this is instead a map of result
-         * values to sets of expression strings.
+         * If isBinaryTreeStrategy() is false (strategy is STRATEGY_FAST_CUT
+         * or STRATEGY_FAST), this is instead a map of expression strings to
+         * lists of masks.
          */
         this.resultMap = [];
 
-        /* The expression which gets us closest to the target so far. */
+        /* The expression which gets us closest to the target so far. If
+         * target is null, this will be null. */
         this.nearestExp = null;
 
-        /* All the "nearest" expressions we've found so far. */
+        /* All the "nearest" expressions we've found so far. If target is
+         * null, this will always be empty. */
         this.nearestExpList = [];
 
         /* The selection as a string. */
@@ -719,23 +892,67 @@ class SolverState {
         /* How many we have of each number. */
         this.selectionCounts = [];
 
-        /* If fastSolve is true, we eliminate redundant expressions
-         * aggressively and return the first optimal solution we find.
-         * If fastSolve is false, we only eliminate equivalent expressions and
-         * we return all the optimal solutions. */
-        this.fastSolve = fastSolve;
+        /* strategy:
+         * STRATEGY_FAST_CUT: use BinaryTree expressions, which agressively
+         * eliminate redundant expressions. Stop when we've found an exact
+         * solution or found that none exists.
+         * STRATEGY_FAST: use BinaryTree expressions, but continue searching
+         * for solutions to other targets, adding up to one solution per
+         * target to imperfectMap, until we've found a solution for every
+         * possible target.
+         * STRATEGY_ALL_SOLUTIONS: use OrderedExpressions (slower) and continue
+         * until all solutions are found. */
+        this.strategy = strategy;
 
-        this.selectionMax = (fastSolve ? SELECTION_MAX_FAST : SELECTION_MAX_FULL);
+        this.selectionMax = (strategy == STRATEGY_ALL_SOLUTIONS ? SELECTION_MAX_FULL : SELECTION_MAX_FAST);
+
+        /* If strategy is STRATEGY_FAST_CUT, imperfectMap is empty.
+         * Otherwise, if one of imperfectMin or imperfectMax were set, this is
+         * a map of (target -> array of solutions). Only targets within the
+         * range [imperfectMin, imperfectMax] are added to imperfectMap.
+         * If strategy is STRATEGY_ALL_SOLUTIONS, each target will map to a
+         * list of all non-trivially different solutions for that target.
+         * Otherwise if strategy is STRATEGY_FAST, each target will map to a
+         * list containing at most one solution. */
+        this.imperfectMap = {};
+
+        /* Expressions whose value is within this range go into imperfectMap.
+         * If both are null, then nothing goes into imperfectMap. */
+        this.imperfectMin = null;
+        this.imperfectMax = null;
     }
 
-    start(selection, target) {
+    isAllSolutions() {
+        return this.strategy == STRATEGY_ALL_SOLUTIONS;
+    }
+
+    isBinaryTreeStrategy() {
+        return this.strategy != STRATEGY_ALL_SOLUTIONS;
+    }
+
+    isStopAfterSolutionFound() {
+        return this.strategy == STRATEGY_FAST_CUT;
+    }
+
+    resultMapHashValue(expression) {
+        if (this.isBinaryTreeStrategy()) {
+            return expression.getValue();
+        }
+        else {
+            return expression.toString();
+        }
+    }
+
+    start(selection, target, imperfectMin=null, imperfectMax=null) {
         this.selection = selection;
         this.target = target;
+        this.imperfectMin = imperfectMin;
+        this.imperfectMax = imperfectMax;
         
         if (this.selection.length < 2) {
             this.finishedCallback(
                     new SolverResults(
-                        selection, target, null,
+                        selection, target, null, null,
                         "Selection must contain at least 2 numbers."
                     )
             );
@@ -745,61 +962,78 @@ class SolverState {
         else if (this.selection.length > this.selectionMax) {
             this.finishedCallback(
                     new SolverResults(
-                        selection, target, null,
-                        "Selection may not contain more than " + this.selectionMax.toString() + " numbers" + (this.fastSolve ? "." : " in all-solutions mode.")
+                        selection, target, null, null,
+                        "Selection may not contain more than " + this.selectionMax.toString() + " numbers" + (!this.isAllSolutions() ? "." : " in all-solutions mode.")
                     )
             );
             this.reset();
             return;
         }
 
-        if (isNaN(target)) {
-            this.finishedCallback(
-                    new SolverResults(selection, target, null,
-                        "Target is not a number."
-                    )
-            );
-            this.reset();
-            return;
-        }
+        /* We're allowed to have a null target - this means search the solution
+         * space and fill imperfectMap with all the solutions we find. */
+        if (target !== null) {
+            if (isNaN(target)) {
+                this.finishedCallback(
+                        new SolverResults(selection, target, null, null,
+                            "Target is not a number."
+                        )
+                );
+                this.reset();
+                return;
+            }
 
-        if (target <= 0) {
-            this.finishedCallback(
-                    new SolverResults(selection, target, null,
-                        "Target must be a positive integer."
-                    )
-            );
-            this.reset();
-            return;
+            if (target <= 0) {
+                this.finishedCallback(
+                        new SolverResults(selection, target, null, null,
+                            "Target must be a positive integer."
+                        )
+                );
+                this.reset();
+                return;
+            }
         }
 
         for (var i = 0; i < selection.length; ++i) {
             var exp = new SingleNumber(selection[i], 1 << i);
             this.addExpressionToList(exp);
 
-            if (this.fastSolve) {
-                var resultMasks = this.resultMap[selection[i]];
-                if (resultMasks == null) {
-                    resultMasks = [];
-                    this.resultMap[selection[i]] = resultMasks;
-                }
-                resultMasks.push(exp.getSelectionMask());
-            }
-            else {
-                var resultStrings = this.resultMap[selection[i]];
-                if (resultStrings == null) {
-                    resultStrings = {};
-                    this.resultMap[selection[i]] = resultStrings;
-                }
-                resultStrings[exp.toString()] = true;
+            if (exp.getValue() <= 0) {
+                this.finishedCallback(new SolverResults(selection, target,
+                            null, null,
+                            "All starting numbers must be positive integers, so you can't have " + exp.getValue().toString() + "."
+                            )
+                );
+                this.reset();
+                return;
             }
 
-            if (exp.getValue() == target) {
-                if (this.fastSolve) {
+            let resultMasks = this.resultMap[this.resultMapHashValue(exp)];
+            if (resultMasks == null) {
+                resultMasks = [];
+                this.resultMap[this.resultMapHashValue(exp)] = resultMasks;
+            }
+            resultMasks.push(exp.getSelectionMask());
+
+            if (!this.isStopAfterSolutionFound()) {
+                /* If we have a filter to catch all expressions, even the ones
+                 * not reaching the best solution, then add the single numbers
+                 * to the filter map if they pass the filter. */
+                if (this.imperfectMin != null || this.imperfectMax != null) {
+                    if ((this.imperfectMin == null || exp.getValue() >= this.imperfectMin) &&
+                            (this.imperfectMax == null || exp.getValue() <= this.imperfectMax) &&
+                            !(exp.getValue() in this.imperfectMap)) {
+                        this.addToImperfectMap(exp);
+                    }
+                }
+            }
+
+            if (target != null && exp.getValue() == target) {
+                if (this.isStopAfterSolutionFound()) {
                     /* If the target is in the selection, just return the single
                      * expression containing that number */
                     this.finishedCallback(
-                            new SolverResults(selection, target, [exp], null)
+                            new SolverResults(selection, target, [exp], [], null)
                     );
                     this.reset();
                     return;
@@ -880,7 +1114,7 @@ class SolverState {
                         var exp1 = expressions1[this.expIndex1];
                         var exp2 = expressions2[this.expIndex2];
 
-                        if (exp1.isCompatible(exp2, this.selectionCounts)) {
+                        if (exp1.isCompatible(exp2)) {
                             /* exp1 and exp2 are compatible - they don't use
                              * any of the same starting numbers. */
                             
@@ -929,8 +1163,7 @@ class SolverState {
                                     continue;
 
                                 var newExp;
-
-                                if (this.fastSolve) {
+                                if (this.isBinaryTreeStrategy()) {
                                     newExp = new BinaryTreeExpression(exp1, exp2, op);
                                 }
                                 else {
@@ -943,11 +1176,11 @@ class SolverState {
 
                                 var resultValue = newExp.getValue();
 
-                                if (resultValue == this.target) {
+                                if (this.target != null && resultValue == this.target) {
                                     /* We've found an expression which equals
-                                     * the target. If fastSolve is set then
-                                     * we've finished and don't need to do
-                                     * anything more. */
+                                     * the target. If strategy is
+                                     * STRATEGY_FAST_CUT then we've finished
+                                     * and don't need to do anything more. */
                                     var timeMs = Date.now() - this.startTime;
                                     console.log(this.selectionString + " -> " +
                                             this.target.toString() + ": solved. " +
@@ -955,13 +1188,13 @@ class SolverState {
                                             timeMs.toString() + "ms. " +
                                             newExp.toString());
 
-                                    if (this.fastSolve) {
+                                    if (this.isStopAfterSolutionFound()) {
                                         if (this.finishedCallback != null) {
                                             this.finishedCallback(
                                                     new SolverResults(
                                                         this.selection,
                                                         this.target,
-                                                        [newExp], null
+                                                        [newExp], null, null
                                                     )
                                             );
                                         }
@@ -981,21 +1214,30 @@ class SolverState {
                                  * expression because expressions can't be
                                  * longer than this. */
                                 if (this.soughtExpressionLength == this.selection.length && this.nearestExp != null) {
-                                    if (Math.abs(resultValue - this.target) > Math.abs(this.nearestExp.getValue() - this.target)) {
-                                        addExp = false;
+                                    if (this.target != null && Math.abs(resultValue - this.target) > Math.abs(this.nearestExp.getValue() - this.target)) {
+                                        if ((this.imperfectMin != null &&
+                                                    resultValue < this.imperfectMin) ||
+                                                (this.imperfectMax != null &&
+                                                 resultValue > this.imperfectMax)) {
+                                            addExp = false;
+                                        }
                                     }
                                 }
 
-                                if (addExp && this.fastSolve) {
-                                    var selectionMask = newExp.getSelectionMask();
+                                if (addExp) {
+                                    let selectionMasks = newExp.getSelectionMaskList();
+                                    let expHashValue = this.resultMapHashValue(newExp);
+
                                     /* Get the list of selection masks which we
-                                     * already know we can use to make
-                                     * resultValue. If the expression newExp
+                                     * already know we can use to make this
+                                     * value or this expression (depending on
+                                     * strategy). If the expression newExp
                                      * uses a superset of one of those
                                      * selection masks then we don't need
                                      * newExp.
                                      *
-                                     * For example, there's no need to know we
+                                     * For example, if we're using fast-solve
+                                     * mode, there's no need to know we
                                      * can make 35 from 3*10+5 if we already
                                      * know we can make it from (10-3)*5. We
                                      * don't need the expression 4*2-2=6 if we
@@ -1004,22 +1246,37 @@ class SolverState {
                                      * because we build the smaller expressions
                                      * first).
                                      */
-                                    var resultExistingMasks = this.resultMap[resultValue];
+                                    let resultExistingMasks = this.resultMap[expHashValue];
                                     if (resultExistingMasks == null) {
                                         resultExistingMasks = [];
-                                        this.resultMap[resultValue] = resultExistingMasks;
+                                        this.resultMap[expHashValue] = resultExistingMasks;
                                     }
 
-
-                                    for (var k = 0; k < resultExistingMasks.length; ++k) {
-                                        if ((selectionMask & resultExistingMasks[k]) == resultExistingMasks[k]) {
-                                            /* We've already got an expression
-                                             * for resultValue which uses a
-                                             * subset of the numbers this
-                                             * expression uses */
-                                            addExp = false;
-                                            break;
+                                    /* If our new expression has at least one
+                                     * selection mask which is not a superset
+                                     * of any of the existing masks for this
+                                     * hash value, then this expression and
+                                     * all its such selection masks are worth
+                                     * keeping. */
+                                    let newMasks = [];
+                                    for (let l = 0; l < selectionMasks.length; ++l) {
+                                        let isSupersetOfOne = false;
+                                        for (let k = 0; k < resultExistingMasks.length; ++k) {
+                                            if ((selectionMasks[l] & resultExistingMasks[k]) == resultExistingMasks[k]) {
+                                                isSupersetOfOne = true;
+                                                break;
+                                            }
                                         }
+                                        if (!isSupersetOfOne) {
+                                            newMasks.push(selectionMasks[l]);
+                                        }
+                                    }
+                                    /* We've already got an expression
+                                     * for expHashValue which uses a
+                                     * subset of the numbers this
+                                     * expression uses */
+                                    if (newMasks.length == 0) {
+                                        addExp = false;
                                     }
 
                                     /* If after all that, this is a new and
@@ -1030,38 +1287,29 @@ class SolverState {
                                      * remember that this result can now be got
                                      * by this set of numbers. */
                                     if (addExp) {
-                                        resultExistingMasks.push(selectionMask);
-                                    }
-                                }
-                                else if (addExp) {
-                                    /* Not in fast-solve mode, so because all
-                                     * the expressions we've generated have
-                                     * had their reorderable components in a
-                                     * standard order, we can just check if the
-                                     * string representation of the expression
-                                     * is in the hash set for this result
-                                     * value. */
-                                    var resultExistingStrings = this.resultMap[resultValue];
-                                    if (resultExistingStrings == null) {
-                                        resultExistingStrings = {};
-                                        this.resultMap[resultValue] = resultExistingStrings;
-                                    }
-
-                                    if (newExp.toString() in resultExistingStrings) {
-                                        /* We already have this expression */
-                                        addExp = false;
-                                    }
-
-                                    if (addExp) {
-                                        resultExistingStrings[newExp.toString()] = true;
+                                        for (let l = 0; l < newMasks.length; ++l) {
+                                            resultExistingMasks.push(newMasks[l]);
+                                        }
                                     }
                                 }
 
+                                if (addExp && !this.isStopAfterSolutionFound()) {
+                                    if ((this.imperfectMin != null ||
+                                            this.imperfectMax != null) &&
+                                            (this.imperfectMin == null ||
+                                             resultValue >= this.imperfectMin) &&
+                                            (this.imperfectMax == null ||
+                                             resultValue <= this.imperfectMax)) {
+                                        this.addToImperfectMap(newExp);
+                                    }
+                                }
 
                                 if (addExp) {
                                     this.addExpressionToList(newExp);
                                     expressionsThisStep++;
+                                }
 
+                                if (addExp && this.target != null) {
                                     /* If the value of this expression is
                                      * closer to the target than the closest
                                      * we've found so far, remember it. */
@@ -1106,7 +1354,8 @@ class SolverState {
                                                 now - this.startTime,
                                                 this.numExpressions,
                                                 this.nearestExp == null ? -1 : this.nearestExp.getValue(),
-                                                this.nearestExpList == null ? 0 : this.nearestExpList.length
+                                                this.nearestExpList == null ? 0 : this.nearestExpList.length,
+                                                this.nearestExp
                                             )
                                     );
                                 }
@@ -1129,18 +1378,21 @@ class SolverState {
         }
 
         /* If we get here, we've searched the entire relevant expression space.
-         * Return the expression that got closest to the target if we're in
-         * fastSolve mode, or the list of optimal expressions if we're not in
-         * fastSolve mode. */
+         * Return the expression or expressions that got closest to the target,
+         * and any other epxressions that match the filter we've been given. */
         var timeMs = Date.now() - this.startTime;
-        console.log(this.selectionString + " -> " + this.target.toString() +
-                ": best is " + (this.nearestExp == null ? "unknown" : this.nearestExp.getValue().toString()) + ". "
+        console.log(this.selectionString +
+                (this.target == null ? "" : (" -> " + this.target.toString() +
+                ": best is " + (this.nearestExp == null ? "unknown" : this.nearestExp.getValue().toString()))) + ". "
                 + this.numExpressions +  " expressions, " +
                 timeMs.toString() + "ms.");
         if (this.finishedCallback != null) {
             this.finishedCallback(
                     new SolverResults(this.selection, this.target,
-                        this.fastSolve ? [this.nearestExp]:this.nearestExpList,
+                        !this.isAllSolutions() ? (
+                            this.nearestExp == null ? [] : [this.nearestExp]
+                        ) : this.nearestExpList,
+                        this.isStopAfterSolutionFound() ? {}:this.imperfectMap,
                         null)
             );
         }
@@ -1165,12 +1417,27 @@ class SolverState {
         this.expressions[expression.getCountNumbersUsed()] = l;
         this.numExpressions++;
     }
+
+    addToImperfectMap(newExp) {
+        let resultValue = newExp.getValue();
+        if (this.isAllSolutions() || !(resultValue in this.imperfectMap)) {
+            if (resultValue in this.imperfectMap) {
+                this.imperfectMap[resultValue].push(newExp);
+            }
+            else {
+                this.imperfectMap[resultValue] = [ newExp ];
+            }
+        }
+    }
 }
 
 /* solverRun() and solverRunAllSolutions() are the public-facing calls from
  * this file.
  *
- * selection is an array of integers, and target is an integer.
+ * selection is an array of integers, and target is an integer or null. If
+ * target is null then there is no target, but we still search the solution
+ * space and fill imperfectMap with solutions to all targets assuming they
+ * match the imperfectSolutionsMin/Max filter.
  *
  * These functions run the solve process in the background using setTimeout()
  * calls.
@@ -1183,26 +1450,49 @@ class SolverState {
  * finishedCallback() will be called with a single argument, a SolverResults
  * object. This contains the solution or solutions the solver found.
  *
- * In fast mode (solverRun()) we make no attempt to find "all" the solutions to
- * a numbers puzzle. Once we find one expression which equals the target, we
- * return it. This will use the fewest number of numbers possible, because we
- * start by building up all the 2-number expressions, then the 3-number
- * expressions, and so on.
  *
- * If we're not in fast mode (solverRunAllSolutions()) we find all the
- * non-trivially-different solutions that give the closest possible to the
- * target.
+ * solverRun() uses the STRATEGY_FAST_CUT strategy.
+ * solverRunAllSolutions() uses the STRATEGY_ALL_SOLUTIONS strategy.
+ *
+ * In STRATEGY_FAST_CUT and STRATEGY_FAST, we make no attempt to find "all" the
+ * solutions to a numbers puzzle. Expressions are eliminated if we already have
+ * an expression which reaches the same total with the same starting numbers.
+ * Additionally, if the strategy is STRATEGY_FAST_CUT, we stop early if we
+ * find a solution to the target.
+ *
+ * If the strategy is STRATEGY_ALL_SOLUTIONS, we use a less aggressive
+ * expression duplicate elimination strategy. The aim is to find all
+ * non-trivially-different solutions to the target.
+ *
+ * If the strategy is STRATEGY_FAST or STRATEGY_ALL_SOLUTIONS, then
+ * imperfectSolutionsMin and imperfectSolutionsMax can be set to tell the
+ * solver to also catch solutions to targets that fall within that range.
+ * In the case of STRATEGY_FAST, at most one solution will be returned per
+ * target, and in the case of STRATEGY_ALL_SOLUTIONS, all non-trivially-
+ * different solutions will be returned for each target.
  */
 
-function solverRunAux(selection, target, progressCallback, finishedCallback, fastSolve) {
-    var solverState = new SolverState(progressCallback, finishedCallback, fastSolve);
-    solverState.start(selection, target);
+function solverRunAux(selection, target, progressCallback, finishedCallback,
+        strategy, imperfectSolutionsMin=null, imperfectSolutionsMax=null) {
+    var solverState = new SolverState(progressCallback, finishedCallback, strategy);
+    solverState.start(selection, target, imperfectSolutionsMin, imperfectSolutionsMax);
 }
 
 function solverRun(selection, target, progressCallback, finishedCallback) {
-    solverRunAux(selection, target, progressCallback, finishedCallback, true);
+    solverRunAux(selection, target, progressCallback, finishedCallback,
+            STRATEGY_FAST_CUT);
 }
 
-function solverRunAllSolutions(selection, target, progressCallback, finishedCallback) {
-    solverRunAux(selection, target, progressCallback, finishedCallback, false);
+function solverRunAllTargets(selection, target, progressCallback,
+        finishedCallback, imperfectSolutionsMin=null,
+        imperfectSolutionsMax=null) {
+    solverRunAux(selection, target, progressCallback, finishedCallback,
+            STRATEGY_FAST, imperfectSolutionsMin, imperfectSolutionsMax);
+}
+
+function solverRunAllSolutions(selection, target, progressCallback,
+        finishedCallback, imperfectSolutionsMin=null, imperfectSolutionsMax=null) {
+    solverRunAux(selection, target, progressCallback, finishedCallback,
+            STRATEGY_ALL_SOLUTIONS, imperfectSolutionsMin,
+            imperfectSolutionsMax);
 }
