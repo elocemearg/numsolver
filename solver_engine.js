@@ -120,6 +120,20 @@ class SolverProgress {
 }
 
 class Expression {
+    isCompatible(otherExp) {
+        /* If there exists a pair of used-numbers bitmasks, one from our list
+         * and one from otherExp's list, which don't have any bits in common,
+         * then we're compatible. */
+        let otherMasks = otherExp.getSelectionMaskList();
+        for (let i = 0; i < this.selectionMasks.length; ++i) {
+            for (let j = 0; j < otherMasks.length; ++j) {
+                if ((this.selectionMasks[i] & otherMasks[j]) == 0) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
 }
 
 /* In fast solve mode, expressions are either BinaryTreeExpressions or
@@ -236,21 +250,20 @@ class BinaryTreeExpression extends Expression {
 }
 
 class SingleNumber extends Expression {
-    constructor(value, selectionMask) {
+    constructor(value, selectionMaskList) {
         super();
         this.value = value;
-        this.selectionMask = selectionMask;
-        this.selectionMaskList = [selectionMask];
+        this.selectionMasks = selectionMaskList.slice();
         this.numbersUsed = [];
         this.numbersUsed[value] = 1;
     }
 
     getSelectionMask() {
-        return this.selectionMask;
+        return this.selectionMasks[0];
     }
 
     getSelectionMaskList() {
-        return this.selectionMaskList;
+        return this.selectionMasks;
     }
 
     getValue() {
@@ -291,20 +304,6 @@ class SingleNumber extends Expression {
 
     getRightExpressionList() {
         return [];
-    }
-
-    isCompatible(otherExp) {
-        if (otherExp.isAtom()) {
-            return (otherExp.selectionMask & this.selectionMask) == 0;
-        }
-        else {
-            let otherMasks = otherExp.getSelectionMaskList();
-            for (let i = 0; i < otherMasks.length; ++i) {
-                if ((otherMasks[i] & this.selectionMask) == 0)
-                    return true;
-            }
-            return false;
-        }
     }
 
     compareTo(otherExp) {
@@ -743,21 +742,6 @@ class OrderedExpression extends Expression {
         return this.selectionMasks;
     }
 
-    isCompatible(otherExp) {
-        /* If there exists a pair of used-numbers bitmasks, one from our list
-         * and one from otherExp's list, which don't have any bits in common,
-         * then we're compatible. */
-        let otherMasks = otherExp.getSelectionMaskList();
-        for (let i = 0; i < this.selectionMasks.length; ++i) {
-            for (let j = 0; j < otherMasks.length; ++j) {
-                if ((this.selectionMasks[i] & otherMasks[j]) == 0) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
     /* Decide whether this expression should go before or after otherExp in
      * a multi-term sum or product. This means we don't have equivalent but
      * trivially-different expressions lying around, like "6 * 4 + 5" and
@@ -889,9 +873,6 @@ class SolverState {
         /* The length of expression step() is currently looking to generate. */
         this.soughtExpressionLength = 1;
 
-        /* How many we have of each number. */
-        this.selectionCounts = [];
-
         /* strategy:
          * STRATEGY_FAST_CUT: use BinaryTree expressions, which agressively
          * eliminate redundant expressions. Stop when we've found an exact
@@ -994,8 +975,32 @@ class SolverState {
             }
         }
 
+        /* Sort the selection descending, so that copies of the same number
+         * are together. */
+        selection = selection.slice(0);
+        selection.sort(function(a, b) { return b - a; });
         for (var i = 0; i < selection.length; ++i) {
-            var exp = new SingleNumber(selection[i], 1 << i);
+            let bitmasks = [1 << i];
+            if (i > 0)
+                this.selectionString += " ";
+            this.selectionString += selection[i].toString();
+
+            /* If this number appears more than once in the selection, and
+             * we're not in fast mode, generate it once, but with multiple
+             * bitmasks, once for each occurrence. This means we don't
+             * accidentally generate multiple copies of the same solution,
+             * because a second solution "uses the other 6" or whatever. */
+            if (!this.isBinaryTreeStrategy()) {
+                while (i + 1 < selection.length && selection[i + 1] == selection[i]) {
+                    ++i;
+                    bitmasks.push(1 << i);
+                    this.selectionString += " ";
+                    this.selectionString += selection[i].toString();
+
+                }
+            }
+
+            var exp = new SingleNumber(selection[i], bitmasks);
             this.addExpressionToList(exp);
 
             if (exp.getValue() <= 0) {
@@ -1013,7 +1018,9 @@ class SolverState {
                 resultMasks = [];
                 this.resultMap[this.resultMapHashValue(exp)] = resultMasks;
             }
-            resultMasks.push(exp.getSelectionMask());
+            for (let j = 0; j < bitmasks.length; ++j) {
+                resultMasks.push(bitmasks[j]);
+            }
 
             if (!this.isStopAfterSolutionFound()) {
                 /* If we have a filter to catch all expressions, even the ones
@@ -1045,16 +1052,6 @@ class SolverState {
                 }
             }
 
-            if (i > 0)
-                this.selectionString += " ";
-            this.selectionString += selection[i].toString();
-
-            var currentCount;
-            if (selection[i] in this.selectionCounts)
-                currentCount = this.selectionCounts[selection[i]];
-            else
-                currentCount = 0;
-            this.selectionCounts[selection[i]] = currentCount + 1;
         }
 
         /* The expression length we're generating currently. */
@@ -1181,14 +1178,16 @@ class SolverState {
                                      * the target. If strategy is
                                      * STRATEGY_FAST_CUT then we've finished
                                      * and don't need to do anything more. */
-                                    var timeMs = Date.now() - this.startTime;
-                                    console.log(this.selectionString + " -> " +
-                                            this.target.toString() + ": solved. " +
-                                            this.numExpressions +  " expressions, " +
-                                            timeMs.toString() + "ms. " +
-                                            newExp.toString());
-
                                     if (this.isStopAfterSolutionFound()) {
+										var timeMs = Date.now() - this.startTime;
+										console.log(this.selectionString +
+                                                " -> " + this.target.toString()
+                                                + ": solved. " +
+                                                this.numExpressions +
+                                                " expressions, " +
+                                                timeMs.toString() + "ms. " +
+                                                newExp.toString());
+
                                         if (this.finishedCallback != null) {
                                             this.finishedCallback(
                                                     new SolverResults(
