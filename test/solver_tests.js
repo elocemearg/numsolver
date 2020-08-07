@@ -75,6 +75,7 @@ function testFinishedAllSolutions(solverResult) {
     }
     else {
         testReport += expressions.length.toString() + " solutions.\r\n";
+        let solutionStringSet = {};
         for (var expIndex = 0; expIndex < expressions.length; ++expIndex) {
             var expression = expressions[expIndex];
             var away = Math.abs(expression.getValue() - target);
@@ -85,7 +86,18 @@ function testFinishedAllSolutions(solverResult) {
                 testReport += "Expected " + testCase.numAway.toString() + " away, observed " + away.toString() + " away. ";
                 failed = true;
             }
+
+            if (expression.toString() in solutionStringSet) {
+                testReport += "(DUPLICATE SOLUTION!)";
+                failed = true;
+            }
+
+            solutionStringSet[expression.toString()] = true;
             testReport += "\r\n";
+        }
+        if (expressions.length == 0) {
+            testReport += "No solutions returned.\r\n";
+            failed = true;
         }
     }
 
