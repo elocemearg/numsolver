@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>Numbers Game Analyser</title>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <link rel="stylesheet" type="text/css" href="solver_desktop.css" />
+        <link rel="shortcut icon" type="image/png" href="images/favicon.png" />
+        <link href="https://fonts.googleapis.com/css?family=Cabin:400,700%7CRoboto&display=swap" rel="stylesheet">
+    </head>
+    <body onload="initState();">
+        <script src="solver_engine.js"></script>
+        <script src="solver_result_patterns.js"></script>
+        <script src="solver_desktop_interface.js"></script>
+
+        <noscript>
+            You don't have JavaScript enabled. This isn't going to go well for you.
+        </noscript>
+
+        <div id="mainsection">
+            <div id="entrysection">
+                <div id="entrycontrolscontainer">
+                    <div class="mainbuttoncontainer" id="mapbuttoncontainer">
+                        <button id="targetmapbutton"
+                                                     onclick="document.getElementById('targetinput').value = ''; processInput();">Map</button>
+                    </div>
+                    <div id="entryboxcontainer">
+                        <input type="text" name="solverinput" id="solverinput"
+                            placeholder="Selection"
+                            onclick="selectionBoxClick();"/>
+                    </div>
+                    <div id="targetboxcontainer">
+                        <input type="number" name="targetinput" id="targetinput"
+                            placeholder="Target"
+                            onclick="targetBoxClick();"/>
+                    </div>
+                    <div class="mainbuttoncontainer" id="solvebuttoncontainer">
+                        <button id="solvebutton" type="submit" onclick="processInput();">Go</button>
+                    </div>
+                    <div class="mainbuttoncontainer" id="helpbuttoncontainer">
+                        <div id="helpbutton" onclick="openHelp();">?</div>
+                    </div>
+                </div>
+            </div>
+            <div id="errorcontainer" style="display: none;">
+                <div id="errorbox">
+                    <div id="errormessageicon">&#x274C;</div>
+                    <div id="errormessagebox"></div>
+                </div>
+            </div>
+            <div id="problemstatement" class="problemstatement">
+                <div id="targetrack" class="targetrack" style="display: none;"></div>
+                <div id="selectionrack" class="selectionrack"></div>
+            </div>
+            <div id="welcomesection">Enter a numbers selection (say, 100 75 50 25 6 3), and press Enter or Go.</div>
+            <div id="outputsection">
+                <div id="solutionsoutercontainer">
+                    <div id="solutionsheadline" class="headline"></div>
+                    <div id="solutionscontainer"></div>
+                </div>
+                <div id="targetmapcontainer" class="centredcontainer" style="display: none;">
+                    <div id="targetmapheadline" class="headline"></div>
+                    <div id="targetmaptablecontainer">
+                        <div id="targetmaptable"></div>
+                        <div id="targetmapkey" class="targetmapkey" style="display: none;">
+                            <div class="targetmapkeyheading">Colour of each target indicates number of solutions as follows</div>
+                            <div id="targetmapkeyscale" class="targetmapkeyscale targetmaprow"></div>
+                        </div>
+                        <div id="targetmapkeyfast" class="targetmapkey" style="display: none;">
+                            <div class="targetmapkeyheading">Key</div>
+                            <div id="targetmapkeyfastscale" class="targetmapkeyscale targetmaprow"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="helpsection">
+            <div id="helpclose" onclick="closeHelp();">&#x274C;</div>
+            <div id="helpbox" class="centredcontainer">
+                <div id="helpinnerbox">
+<h1>Numbers Game Solver</h1>
+<p>
+This solves numbers games according to the rules of the TV show Countdown.
+</p>
+<p>
+Enter a selection of numbers separated by spaces, and an optional target, in
+the boxes above. Then press enter or click Go.
+</p>
+<p>
+The selection is conventionally six numbers, but you can enter between two and
+eight. All the numbers in the selection and target (if given) must be positive
+integers.
+</p>
+<p>
+If you enter a target, you'll see all the non-trivially different solutions for
+that target, and the solution counts for nearby targets.
+</p>
+<p>
+If you don't enter a target, you'll see a map of all the targets (101-999) at
+once, colour coded by solveability with the given selection. Click on any
+target to see the solutions for it.
+</p>
+<p>
+If you're using a mobile device, you might find
+<a href="index.html" target="_blank">this interface</a> easier to use, but it
+doesn't have all the same features.
+</p>
+
+<h1>Shortcuts and special commands</h1>
+<p>
+The following shortcuts may be included in the selection box to modify the
+behaviour of the solver.
+</p>
+<table class="shortcuts">
+<tr>
+    <td class="shortcut">4L</td>
+    <td>Equivalent to <span style="font-family: monospace">100 75 50 25</span>.
+        For example,
+        <span style="font-family: monospace">4L 6 3</span> expands to
+        <span style="font-family: monospace">100 75 50 25 6 3</span>.
+    </td>
+</tr>
+<tr>
+    <td class="shortcut">fast</td>
+    <td>Use the fast solver (see below) no matter how many numbers are in
+        the selection. By default, the fast solver is only used when the
+        selection contains more than 7 numbers.</td>
+</tr>
+<tr>
+    <td class="shortcut">@<span style="font-style: italic">target</span></td>
+    <td>Use <span style="font-family: monospace; font-style: italic;">target</span>
+        as the target. Useful if you don't want the hassle of moving
+        all the way over to the other box to type the target.</td>
+</tr>
+</table>
+
+<h1>Technical detail</h1>
+<p>
+This solver generates all legal expressions that can be made from the starting
+numbers, subject to some optimisations. It keeps the expressions that reach
+the target, or if it's not possible to reach the target, the expressions that
+get the closest to it.
+</p>
+<p>
+The solver should solve every puzzle perfectly. If you find a solution to a
+puzzle which the solver claims is impossible, or you find a closer solution
+than the closest one it finds, then that's a bug.
+</p>
+<h2>Rules</h2>
+<p>
+The rules are as used by the numbers round on Countdown. The object of the game
+is to use the starting numbers and any combination of addition, subtraction,
+multiplication or division to reach the target number or as close as possible
+to it.
+</p>
+<p>
+You don't have to use all the numbers, but each number may be used only once.
+Only positive integers may be used at any stage of the calculation. Negative
+numbers, powers and fractions are not allowed.
+</p>
+<h2>All solutions</h2>
+<p>
+If you enter seven or fewer numbers in the selection, the solver will give
+you all the non-trivially different solutions for a given target. The solver
+considers two expressions to be equivalent, and therefore not different
+solutions, if both expressions do the same operations on the same numbers when
+their operations are rearranged into a standard order. This means you don't get
+all the trivial rearrangements of the same solution.
+</p>
+<h2>Fast solver</h2>
+<p>
+If you enter eight numbers in the selection, we use the "fast" solver to save
+time and memory. This agressively eliminates duplicate expressions by
+considering two expressions to be equivalent if they reach the same target
+with the same starting numbers. This mode only tells you whether each target is
+possible, and gives one example solution. However, it cannot tell you if this
+is the only solution or what other solutions may exist.
+</p>
+<h2>Useless operations</h2>
+<p>
+Trivially redundant operations which are never useful in the game are always
+ignored and not included in the expression. This includes introducing more
+operations to an expression after it has reached the target, multiplying or
+dividing by 1, or any part of an expression being equivalent to
+2x&nbsp;&minus;&nbsp;x or x²&nbsp;/&nbsp;x.
+</p>
+
+</p>
+<h1>About</h1>
+<p>
+This solver was written by Graeme Cole and is released under a
+<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank">Creative Commons Attribution Licence</a>. The source code is
+<a href="https://github.com/elocemearg/numsolver" target="_blank">available on GitHub</a>.
+It is not affiliated with or endorsed by Countdown or anyone connected with the
+show.
+</p>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>

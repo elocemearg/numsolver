@@ -1,0 +1,574 @@
+body {
+    font-family: 'Roboto', sans-serif;
+    background-color: #c2d1ec;
+}
+
+#mainsection {
+    position: relative;
+}
+
+#entrysection {
+    position: relative;
+    margin-top: 10px;
+    margin-bottom: 10px;
+    width: 100%;
+    clear: both;
+    height: 50px;
+    text-align: center;
+    vertical-align: top;
+}
+
+#entrycontrolscontainer {
+    position: relative;
+    display: inline-block;
+    text-align: left;
+    max-width: 100%;
+    width: 800px;
+    height: 40px;
+}
+
+#entryboxcontainer {
+    left: 17%;
+    width: 35%;
+}
+
+#entrycontrolscontainer input {
+    width: 95%;
+    font-size: 18pt;
+    font-family: 'Roboto', sans-serif;
+    border: 4px silver groove;
+    border-radius: 5px;
+    height: 30px;
+}
+
+#entrycontrolscontainer div {
+    position: absolute;
+    display: inline-block;
+}
+
+#targetboxcontainer {
+    left: 54%;
+    width: 20%;
+}
+
+#solvebuttoncontainer {
+    left: 77%;
+    width: 15%;
+}
+
+#mapbuttoncontainer {
+    left: 0%;
+    width: 15%;
+}
+
+#helpbuttoncontainer {
+    left: 94%;
+    width: 5%;
+}
+
+#helpbutton {
+    cursor: pointer;
+    width: 100%;
+    height: 40px;
+    background-color: blue;
+    color: white;
+    line-height: 40px;
+    font-size: 18pt;
+    text-align: center;
+    border-radius: 20px;
+}
+
+button {
+    font-family: 'Roboto', sans-serif;
+}
+
+div.mainbuttoncontainer button {
+    width: 100%;
+    height: 40px;
+    font-size: 14pt;
+    border: 4px silver groove;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+#errorcontainer {
+    position: relative;
+    text-align: center;
+}
+
+#errorbox {
+    position: relative;
+    display: inline-block;
+    background-color: orange;
+    border-radius: 5px;
+    vertical-align: top;
+    box-shadow: 2px 2px 4px gray;
+}
+
+#errormessageicon {
+    position: relative;
+    width: 60px;
+    text-align: center;
+    font-size: 36pt;
+    display: inline-block;
+}
+
+#errormessagebox {
+    position: relative;
+    text-align: left;
+    vertical-align: top;
+    padding: 10px;
+    max-width: 500px;
+    display: inline-block;
+}
+
+div.centredcontainer {
+    display: inline-block;
+}
+
+#morehelplink {
+    color: blue;
+    cursor: pointer;
+}
+
+#helpsection {
+    position: fixed;
+    top: 0px;
+    left: 0px;
+    height: 100%;
+    width: 100%;
+    background-color: rgb(64, 64, 64, 0.5);
+    text-align: center;
+    display: none;
+}
+
+#helpbox {
+    position: relative;
+    display: inline-block;
+    max-width: 100%;
+    width: 1000px;
+    top: 5vh;
+    max-height: 90vh;
+    background-color: #ddeeff;
+    border: 3px groove gray;
+    border-radius: 6px;
+    text-align: left;
+    font-size: 10pt;
+    overflow-y: scroll;
+}
+
+#helpclose {
+    position: absolute;
+    z-index: 1;
+    right: 10px;
+    top: 10px;
+    width: 60px;
+    height: 60px;
+    background-color: rgb(0, 0, 0, 0.5);
+    color: silver;
+    line-height: 60px;
+    font-size: 36pt;
+    text-align: center;
+    cursor: pointer;
+    border-radius: 30px;
+}
+
+#helpinnerbox {
+    margin: 10px;
+}
+
+#helpbox h1, h2, h3 {
+    font-family: 'Cabin', sans-serif;
+}
+
+td.shortcut {
+    margin-left: 20px;
+    padding-left: 10px;
+    padding-right: 10px;
+    font-family: monospace;
+}
+
+#welcomesection {
+    color: gray;
+    margin-left: auto;
+    margin-right: auto;
+    margin-top: 50px;
+    margin-bottom: 50px;
+    max-width: 1000px;
+    font-size: 18pt;
+    text-align: center;
+}
+
+div.problemstatement {
+    margin-top: 10px;
+    margin-bottom: 10px;
+}
+
+div.targetrack {
+    position: relative;
+    margin-top: 10px;
+    margin-bottom: 5px;
+    clear: both;
+    text-align: center;
+}
+
+div.nearbytargetcell {
+    position: relative;
+    width: 40px;
+    max-width: 3.5vw;
+    height: 35px;
+    border-left: 1px solid gray;
+    border-right: 1px solid gray;
+    display: inline-block;
+    text-align: center;
+    vertical-align: bottom;
+    box-shadow: 0px 2px 2px silver;
+
+    /* Only a starting value - will be overridden by any solve */
+    background-color: #dddddd;
+}
+
+div.currenttargetcell {
+    position: relative;
+    display: inline-block;
+    height: 50px;
+    line-height: 50px;
+    min-width: 80px;
+    max-width: none;
+    width: auto;
+    border: none;
+    border-radius: 4px;
+    margin-left: 5px;
+    margin-right: 5px;
+    font-size: 24pt;
+    font-weight: bold;
+    text-align: center;
+    font-family: 'Cabin', sans-serif;
+    padding-left: 2px;
+    padding-right: 2px;
+}
+
+div.rackbeforetarget {
+    border-left: 1px solid gray;
+    border-right: none;
+}
+
+div.rackaftertarget {
+    border-right: 1px solid gray;
+    border-left: none;
+}
+
+/* Borders to indicate where the 5-point and 7-point boundaries are: 10 away
+ * and 5 away. */
+div.scoringboundarybelowcell {
+    border-left: 3px solid gray;
+}
+
+div.scoringboundaryabovecell {
+    border-right: 3px solid gray;
+}
+
+div.nearbytargetnumber {
+    font-size: 10pt;
+    height: 20px;
+    line-height: 20px;
+    font-weight: bold;
+    font-family: 'Cabin', sans-serif;
+    text-align: center;
+}
+
+div.nearbytargetsolutioncount {
+    position: absolute;
+    width: 100%;
+    height: 15px;
+    line-height: 15px;
+    font-size: 8pt;
+    text-align: center;
+}
+
+div.selectionrack {
+    position: relative;
+    clear: both;
+    text-align: center;
+
+    /* Set font-size to 0 so we can put a space between each number but they
+     * don't appear as spaces. They're only there so you can highlight the
+     * selection and copy-paste it. We'll override the font size for each
+     * individual cell. */
+    font-size: 0pt;
+}
+
+/* The display of the current target appears to be in the middle of the target
+ * ack but it actually belongs to the selection rack below it. So this is a
+ * placeholder in the target rack, which takes up the same amount of space as
+ * the target but isn't actually visible. */
+div.currenttargetcellplaceholder {
+    visibility: hidden;
+}
+
+div.currenttargetcellcontainer {
+    position: absolute;
+    width: 100%;
+    text-align: center;
+    height: 0px;
+}
+
+/* The counterpart to currenttargetcellplaceholder: this div is in the
+ * currenttargetcellcontainer div which is in turn in selectionrack, and we use
+ * positioning to place this in the same position on the page as
+ * currenttargetcellplaceholder. This shows the current target to the user. */
+div.currenttargetcellvisible {
+    position: relative;
+    top: -55px;
+    box-shadow: 2px 2px 4px gray;
+}
+
+div.selectioncellsborder {
+    display: inline-block;
+}
+
+div.selectioncell {
+    display: inline-block;
+    background-color: blue;
+    color: white;
+    text-align: center;
+    min-width: 70px;
+    margin-left: 2px;
+    margin-right: 2px;
+    height: 50px;
+    line-height: 50px;
+    font-size: 24pt;
+    font-weight: bold;
+    font-family: 'Cabin', sans-serif;
+    border: none;
+    border-radius: 4px;
+    box-shadow: 2px 2px 4px gray;
+}
+
+#outputsection {
+    clear: both;
+    width: 100%;
+    max-width: 1000px;
+    margin-left: auto;
+    margin-right: auto;
+    text-align: center;
+}
+
+/* Headline displayed immediately above the results. */
+div.headline {
+    position: relative;
+    width: 100%;
+    text-align: left;
+    font-family: 'Cabin', sans-serif;
+    font-size: 16pt;
+    height: 20pt;
+    vertical-align: middle;
+}
+
+span.headlineaway {
+    font-weight: bold;
+}
+
+span.headlinesolcount {
+    font-weight: bold;
+}
+
+
+#solutionsoutercontainer {
+    margin-top: 20px;
+}
+
+/* Main container for the results to a specific-target solve, which shows
+ * either one or two totals (two is possible if the target is, say, 939 and we
+ * can only get to 938 and 940) and one or more solutions for each.
+ *
+ * At runtime we put a fullsolutions div into this container. */
+#solutionscontainer {
+    position: relative;
+    display: block;
+    width: 100%;
+    text-align: left;
+}
+
+div.fullsolutions {
+    clear: both;
+    max-width: 1190px;
+    margin-left: auto;
+    margin-right: auto;
+    padding: 5px;
+    background-color: #ddeeff;
+    border: 3px groove gray;
+    border-radius: 6px;
+}
+
+div.fullsolutions div {
+    vertical-align: top;
+}
+
+div.solutionbytotal {
+    top: 0px;
+    display: inline-block;
+    min-width: 49%;
+    max-width: 49%;
+    margin-bottom: 10px;
+}
+
+div.solutionbytotalsingle {
+    display: block;
+    max-width: 100%;
+}
+
+div.solutioncategory {
+    margin-top: 10px;
+}
+
+div.solutiontotalheading {
+    margin-top: 10px;
+    margin-left: 10px;
+    font-size: 24pt;
+    font-family: 'Cabin', sans-serif;
+    clear: both;
+}
+
+span.headingtotal {
+    font-weight: bold;
+}
+
+span.headingsolcount {
+    font-size: 14pt;
+}
+
+div.solutioncategoryheading {
+    margin-top: 10px;
+    margin-left: 20px;
+    font-size: 14pt;
+}
+
+div.fastsolverwarningdiv {
+    margin-left: 10px;
+    margin-top: 15px;
+}
+
+span.fastsolverwarning {
+    /*background-color: #ffdd99;
+    box-shadow: 2px 2px 4px silver;
+    border-radius: 5px;
+    padding: 5px 10px 5px 10px;*/
+    font-size: 10pt;
+    color: #444444;
+}
+
+div.categorysolutioncontainer {
+    margin-left: 30px;
+}
+
+div.categorysolution {
+    display: inline-block;
+    font-size: 10pt;
+    margin-left: 10px;
+    margin-right: 10px;
+    margin-top: 5px;
+    margin-bottom: 5px;
+    color: navy;
+    padding-left: 5px;
+    padding-right: 5px;
+    box-shadow: 2px 2px 4px silver;
+    font-family: 'Roboto', sans-serif;
+}
+
+div.categorysolutionexact {
+    background-color: #88ff88;
+    border-radius: 5px;
+    border: 5px solid #88ff88;
+}
+
+div.categorysolutioninexact {
+    background-color: #ffff88;
+    border-radius: 5px;
+    border: 5px solid #ffff88;
+}
+
+/* When the target map is being displayed, and the user hovers over a target
+ * in the map, we display an example solution above the map and to the right. */
+div.categorysolutionright {
+    margin-top: 0px;
+    margin-bottom: 0px;
+    box-shadow: none;
+    float: right;
+}
+
+#targetmapcontainer {
+    position: relative;
+}
+
+#targetmapheadline {
+    font-size: 14pt;
+}
+
+#targetmaptablecontainer {
+    position: relative;
+    text-align: center;
+    border: 3px groove silver;
+    border-radius: 6px;
+    padding-top: 3px;
+    padding-bottom: 6px;
+    background-color: #ddeeff;
+}
+
+#targetmaptable {
+    position: relative;
+    display: inline-block;
+}
+
+div.targetmaprow {
+    text-align: left;
+    margin-left: 5px;
+    margin-right: 5px;
+}
+
+div.targetmapcell {
+    display: inline-block;
+    width: 25px;
+    height: 15px;
+    margin-right: 2px;
+    font-size: 7pt;
+    border: 1px solid gray;
+    border-radius: 2px;
+    line-height: 15px;
+    text-align: center;
+    cursor: pointer;
+}
+
+div.targetmapkey {
+    position: relative;
+    display: block;
+    text-align: left;
+}
+
+div.targetmapkeyheading {
+    position: relative;
+    text-align: left;
+    margin-top: 10px;
+    margin-left: 5px;
+    font-size: 9pt;
+    color: #444444;
+    font-family: "Cabin", sans-serif;
+}
+
+div.targetmapkeyscale {
+    position: relative;
+    text-align: left;
+}
+
+div.targetmapkeycell {
+    cursor: default;
+    font-family: "Cabin", sans-serif;
+    width: 30px;
+    height: 20px;
+    font-size: 9pt;
+    line-height: 20px;
+}
+
+div.targetmapfastkeycell {
+    width: 60px;
+}
