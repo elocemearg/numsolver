@@ -37,7 +37,8 @@
                         <button id="solvebutton" type="submit" onclick="processInput();">Go</button>
                     </div>
                     <div class="mainbuttoncontainer" id="helpbuttoncontainer">
-                        <div id="helpbutton" onclick="openHelp();">?</div>
+                        <div id="helpbutton" onclick="openHelp();"
+                            alt="Show help" title="Show help">?</div>
                     </div>
                 </div>
             </div>
@@ -54,11 +55,18 @@
             <div id="welcomesection">Enter a numbers selection (say, 100 75 50 25 6 3), and press Enter or Go.</div>
             <div id="outputsection">
                 <div id="solutionsoutercontainer">
-                    <div id="solutionsheadline" class="headline"></div>
+                    <div id="solutionsheadline" class="headline">
+                        <div id="solutionsheadlinetext" class="headlineleft"></div>
+                        <div id="solutionsheadlinelink" class="headlineright headlinelink"></div>
+                    </div>
                     <div id="solutionscontainer"></div>
                 </div>
                 <div id="targetmapcontainer" class="centredcontainer" style="display: none;">
-                    <div id="targetmapheadline" class="headline"></div>
+                    <div id="targetmapheadline" class="headline">
+                        <div id="targetmapheadlinetext" class="headlineleft"></div>
+                        <div id="targetmapheadlinesolution" class="headlineright"></div>
+                        <div id="targetmapheadlinelink" class="headlineright headlinelink"></div>
+                    </div>
                     <div id="targetmaptablecontainer">
                         <div id="targetmaptable"></div>
                         <div id="targetmapkey" class="targetmapkey" style="display: none;">
@@ -74,7 +82,7 @@
             </div>
         </div>
         <div id="helpsection">
-            <div id="helpclose" onclick="closeHelp();">&#x274C;</div>
+            <div id="helpclose" onclick="closeHelp();" alt="Close help window">&#x274C;</div>
             <div id="helpbox" class="centredcontainer">
                 <div id="helpinnerbox">
 <h1>Numbers Game Solver</h1>

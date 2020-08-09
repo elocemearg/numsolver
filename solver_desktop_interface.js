@@ -7,6 +7,7 @@ const targetRackRadius = 10;
 const targetRackMin = 1;
 const targetRackMax = null;
 const useAlgebraicNotation = true;
+const uriSelSep = "-";
 
 const targetMapStart = 100;
 const targetMapHide = 100;
@@ -59,6 +60,20 @@ class NumbersProblem {
 
     getStrategy() {
         return this.strategy;
+    }
+
+    toQueryString() {
+        let qStr = "?sel=" + encodeURIComponent(this.selection.join(uriSelSep));
+        if (this.target != null) {
+            qStr += "&target=" + this.target.toString();
+        }
+        if (this.strategy == STRATEGY_FAST) {
+            qStr += "&fast";
+        }
+        else if (this.strategy == STRATEGY_FAST_CUT) {
+            qStr += "&fastcut";
+        }
+        return qStr;
     }
 }
 
@@ -115,10 +130,18 @@ function discardContents(element) {
 function clearResults() {
     let solutionsContainer = document.getElementById("solutionscontainer");
     discardContents(solutionsContainer);
-    let solutionsHeadline = document.getElementById("solutionsheadline");
+    let solutionsHeadline = document.getElementById("solutionsheadlinetext");
     discardContents(solutionsHeadline);
-    let targetMapHeadline = document.getElementById("targetmapheadline");
+    let targetMapHeadline = document.getElementById("targetmapheadlinetext");
     discardContents(targetMapHeadline);
+
+    let solutionsHeadlineLink = document.getElementById("solutionsheadlinelink");
+    solutionsHeadlineLink.style.display = "none";
+
+    let targetMapHeadlineLink = document.getElementById("targetmapheadlinelink");
+    targetMapHeadlineLink.style.display = "none";
+    let targetMapHeadlineSolution = document.getElementById("targetmapheadlinesolution");
+    targetMapHeadlineSolution.style.display = "none";
 }
 
 function buildSolutionDiv(solution, target, showEquals=false, algebraic=null) {
@@ -144,7 +167,11 @@ function buildSolutionDiv(solution, target, showEquals=false, algebraic=null) {
 }
 
 function getActiveHeadlineDiv() {
-    return document.getElementById(currentProblem.getTarget() == null ? "targetmapheadline" : "solutionsheadline");
+    return document.getElementById(currentProblem.getTarget() == null ? "targetmapheadlinetext" : "solutionsheadlinetext");
+}
+
+function getActiveHeadlineLinkDiv() {
+    return document.getElementById(currentProblem.getTarget() == null ? "targetmapheadlinelink" : "solutionsheadlinelink");
 }
 
 function makeNumbersProblemFromInput(input, targetInputValue) {
@@ -259,6 +286,87 @@ function makeNumbersProblemFromInput(input, targetInputValue) {
     let np = new NumbersProblem(selection, target);
     np.setStrategy(strategy);
     return np;
+}
+
+function queryStringToDict(queryString) {
+    let dict = {};
+    if (queryString == null || queryString.length == 0) {
+        return dict;
+    }
+
+    if (queryString[0] == '?') {
+        queryString = queryString.substring(1);
+    }
+
+    let components = queryString.split("&");
+    for (let i = 0; i < components.length; ++i) {
+        let nameEqualsValue = components[i];
+        let equalsPos = nameEqualsValue.search("=");
+
+        if (equalsPos >= 0) {
+            name = nameEqualsValue.substring(0, equalsPos);
+            value = nameEqualsValue.substring(equalsPos + 1);
+        }
+        else {
+            name = nameEqualsValue;
+            value = "";
+        }
+
+        name = decodeURIComponent(name.replace(/\+/g, " "));
+        value = decodeURIComponent(value.replace(/\+/g, " "));
+        dict[name] = value;
+    }
+
+    return dict;
+}
+
+function makeNumbersProblemFromQueryString(queryString) {
+    if (queryString == null || queryString.length == 0) {
+        return null;
+    }
+
+    let dict = queryStringToDict(queryString);
+
+    let selection;
+    let target = null;
+
+    if ("sel" in dict) {
+        let selectionStr = dict["sel"];
+        let selectionArr = selectionStr.split(uriSelSep);
+        selection = [];
+        for (let i = 0; i < selectionArr.length; ++i) {
+            let n = parseInt(selectionArr[i]);
+            if (isNaN(n)) {
+                console.log("Ignoring query string " + queryString + ": invalid number " + selectionArr[i] + ".");
+                return null;
+            }
+            selection.push(n);
+        }
+    }
+    else {
+        return null;
+    }
+
+    if ("target" in dict) {
+        let n = parseInt(dict["target"]);
+        if (isNaN(n)) {
+            console.log("Ignoring query string " + queryString + ": invalid target " + dict["target"] + ".");
+            return null;
+        }
+        target = n;
+    }
+
+    let numbersProblem = new NumbersProblem(selection, target);
+    let strategy;
+    if (selection.length > SELECTION_MAX_FULL || "fast" in dict) {
+        strategy = STRATEGY_FAST;
+    }
+    else {
+        strategy = STRATEGY_ALL_SOLUTIONS;
+    }
+    numbersProblem.setStrategy(strategy);
+
+    return numbersProblem;
 }
 
 
@@ -394,12 +502,16 @@ function buildAndDisplayNearestSolutions(fullSolutionsDiv, problem, distinctTota
 }
 
 function setTargetMapHeadline(hoveredTarget, displayResults) {
-    let headlineDiv = document.getElementById("targetmapheadline");
+    let headlineDivText = document.getElementById("targetmapheadlinetext");
+    let headlineDivSolution = document.getElementById("targetmapheadlinesolution");
+    let headlineDivLink = document.getElementById("targetmapheadlinelink");
     if (hoveredTarget == null) {
         /* Cursor isn't hovering over a target, so display the default
          * headline rather than a solution for that target. */
         if (displayResults && defaultTargetMapHeadline != null) {
-            headlineDiv.innerText = defaultTargetMapHeadline;
+            headlineDivText.innerText = defaultTargetMapHeadline;
+            headlineDivSolution.style.display = "none";
+            headlineDivLink.style.display = "inline-block";
         }
     }
     else if (currentResults != null && !solverIsRunning) {
@@ -421,15 +533,20 @@ function setTargetMapHeadline(hoveredTarget, displayResults) {
             else {
                 html += " has " + sols.length.toString() + " solutions with this selection.";
             }
-            headlineDiv.innerHTML = html;
+            headlineDivText.innerHTML = html;
 
             let solDiv = buildSolutionDiv(sols[0], hoveredTarget, false, true);
-            solDiv.classList.add("categorysolutionright");
-            headlineDiv.appendChild(solDiv);
+            solDiv.classList.add("inheadlinesolution");
+            discardContents(headlineDivSolution);
+            headlineDivSolution.appendChild(solDiv);
         }
         else {
-            headlineDiv.innerText = hoveredTarget.toString() + " is not possible with this selection.";
+            headlineDivText.innerText = hoveredTarget.toString() + " is not possible with this selection.";
+            discardContents(headlineDivSolution);
         }
+
+        headlineDivSolution.style.display = "inline-block";
+        headlineDivLink.style.display = "none";
     }
 }
 
@@ -572,6 +689,25 @@ function selectionBoxClick() {
     if (selectionBox.selectionStart >= selectionBox.selectionEnd) {
         selectionBox.select();
     }
+}
+
+
+function createPageLinkElement(problem) {
+    let a = document.createElement("a");
+    a.href = document.location.protocol + "//" +
+            document.location.host + document.location.pathname +
+            problem.toQueryString();
+    a.innerText = "link to this page";
+    return a;
+}
+
+function setCurrentPageLink(problem) {
+    let headlineLinkDiv = getActiveHeadlineLinkDiv();
+    discardContents(headlineLinkDiv);
+    headlineLinkDiv.appendChild(createPageLinkElement(problem));
+    headlineLinkDiv.style.display = "inline-block";
+
+    window.history.replaceState(null, null, problem.toQueryString());
 }
 
 function targetBoxClick() {
@@ -1069,6 +1205,9 @@ function outputPuzzleSolutions(results, problem) {
         }
     }
 
+    setCurrentPageLink(problem);
+    document.getElementById("targetmapheadlinesolution").style.display = "none";
+
     let totalToExpressions = {};
 
     /* A list of all distinct nearest totals. There will either be one (if
@@ -1402,6 +1541,15 @@ function initState() {
     });
 
     document.addEventListener("keyup", escapeListener);
+
+
+    /* If we've been given a selection in the query string, because the user
+     * has followed a link to a specific solve, start a solve of that selection
+     * immediately. */
+    let initialNumbersProblem = makeNumbersProblemFromQueryString(document.location.search);
+    if (initialNumbersProblem != null) {
+        startSolve(initialNumbersProblem);
+    }
 }
 
 function processInput() {
