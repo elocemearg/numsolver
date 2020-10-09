@@ -17,13 +17,13 @@ This solver is not affiliated with or endorsed by Countdown or anyone connected 
 `mobile.html` is the original user interface. It's designed for touchscreens in portrait orientation, but it can be used, albeit clunkily, on a desktop computer. By default it runs in "fast" mode, which finds one solution.
 
 ## Quantum Tombola
-`desktop.html` is the desktop-targeted interface, which assumes the user has easy access to a keyboard. It can do more complex things like analyse a numbers selection and show you which targets are possible and with how many solutions.
+`desktop.html` is the desktop-targeted interface, which doesn't present a number pad to the user, instead assuming the user has some sort of keyboard input. It can do more complex things like analyse a numbers selection and show you which targets are possible and with how many solutions.
 
 # Using the engine
 
 This section is intended for developers who want to use the solver engine in their own projects.
 
-`solver_engine.js` is the backend, which can be repurposed to whatever other interface you have. Its public-facing functions are `solverRun()`, `solverRunAllSolutions()`, and `solverRunAllTargets()`. Both of these functions return immediately and start the solve process in the background using JavaScript's `setTimeout()` call. When the solve process is finished, the result is delivered to the application using a callback.
+`solver_engine.js` is the backend, which can be repurposed to whatever other interface you have. Its public-facing functions are `solverRun()`, `solverRunAllSolutions()`, and `solverRunAllTargets()`. Both of these functions return immediately and start the solve process in the background using JavaScript's `setTimeout()` call. When the solve process is finished, the result (see the `SolverResults` object) is delivered to the application using a callback.
 
 `solverRun()`, `solverRunAllSolutions()`, and `solverRunAllTargets()` take four arguments as follows:
 
@@ -36,9 +36,7 @@ In addition, `solverRunAllSolutions()` and `solverRunAllTargets()` take two furt
 5. `imperfectSolutionsMin` 
 6. `imperfectSolutionsMax`
 
-If either `imperfectSolutionsMin` or `imperfectSolutionsMax` are set, then solutions which are not the best available will be remembered and delivered in the `SolverResults` object passed to `finishedCallback()`. If `target` was `null` then you probably want to set these otherwise you won't get any solutions at all.
-
-Setting `imperfectSolutionsMin` to 101 and `imperfectSolutionsMax` to 999 will tell the engine to retain all solutions which reach any number between 101 and 999.
+If either `imperfectSolutionsMin` or `imperfectSolutionsMax` are set, then solutions which might not be the best available will be remembered and delivered in the `SolverResults` object passed to `finishedCallback()`, as long as they're within that min-max range. If `target` was `null` then you probably want to set these otherwise you won't get any solutions at all. For example, setting `imperfectSolutionsMin` to 101 and `imperfectSolutionsMax` to 999 will tell the engine to retain all solutions which reach any number between 101 and 999.
 
 See the description of `SolverResults` for information on how to list the imperfect solutions.
 
@@ -129,11 +127,11 @@ Return the number of best solutions found. This will be the length of the array
 returned by `getSolutions()`, or 0 if that returns `null`.
 
 ### `getImperfectSolutions()`
-Return a dictionary which maps integers (expression values) to lists of Expression objects.
+Return a dictionary which maps integers (expression values) to lists of Expression objects. If a target has no solutions with the given selection, it does not appear in the map.
 
 This is the set of all solutions we kept because their values fell within the range `[imperfectSolutionsMin, imperfectSolutionsMax]`. This includes perfect solutions as well. However, if `imperfectSolutionsMin` and `imperfectSolutionsMax` were both `null`, this returns an empty dictionary.
 
-If `target` was `null`, then this method is how you get your solutions. Every applicable solutiont whose value is within the specified range will be in the returned map.
+If `target` was `null`, then this method is how you get your solutions. Every applicable solution whose value is within the specified range will be in the returned map.
 
 ### `getErrorMessage()`
 Return the error message, as a string. If there was no error, this is `null`.
