@@ -33,6 +33,7 @@ This section is intended for developers who want to use the solver engine in the
 4. `finishedCallback`: a function for the engine to call when it's finished, to pass you the solution or solutions. Its single argument is a `SolverResults` object, detailed below.
 
 In addition, `solverRunAllSolutions()` and `solverRunAllTargets()` take two further arguments, which are optional and default to `null`:
+
 5. `imperfectSolutionsMin` 
 6. `imperfectSolutionsMax`
 
