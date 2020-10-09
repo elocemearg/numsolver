@@ -41,7 +41,7 @@ If either `imperfectSolutionsMin` or `imperfectSolutionsMax` are set, then solut
 
 See the description of `SolverResults` for information on how to list the imperfect solutions.
 
-## The difference betwewen `solverRun()`, `solverRunAllSolutions()` and `solverRunAllTargets()
+## The difference between `solverRun()`, `solverRunAllSolutions()` and `solverRunAllTargets()`
 
 The use cases of three functions range from "here's a numbers selection and a target, give me one solution to this target or the closest possible" through "give me one solution to every target that's possible within this range" to "give me every solution to this target or a range of targets".
 
