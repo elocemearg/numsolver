@@ -7,6 +7,40 @@ body {
     position: relative;
 }
 
+#headersection {
+    position: relative;
+    width: 100%;
+    clear: both;
+    text-align: center;
+    font-size: 10pt;
+    border-bottom: 2px groove white;
+}
+
+#headersectioncontainer {
+    position: relative;
+    display: inline-block;
+    max-width: 100%;
+    width: 800px;
+    vertical-align: top;
+    padding-bottom: 1ex;
+}
+
+#headersectionleft {
+    position: relative;
+    float: left;
+    text-align: left;
+}
+
+#headersectionright {
+    position: relative;
+    float: right;
+    text-align: right;
+}
+
+#headersection a {
+    margin-right: 2em;
+}
+
 #entrysection {
     position: relative;
     margin-top: 10px;
