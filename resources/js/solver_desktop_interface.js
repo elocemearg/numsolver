@@ -24,6 +24,9 @@ class NumbersProblem {
         this.target = target;
         this.errorMessage = errorMessage;
         this.strategy = STRATEGY_ALL_SOLUTIONS;
+        this.minNumbersUsed = null;
+        this.maxNumbersUsed = null;
+        this.lockedNumbers = [];
     }
 
     getSelection() {
@@ -35,7 +38,15 @@ class NumbersProblem {
     }
 
     isValid() {
-        return this.selection != null;
+        if (this.selection == null)
+            return false;
+
+        if (this.isBinaryTreeStrategy() && ((this.minNumbersUsed != null &&
+                this.minNumbersUsed > 1) || this.lockedNumbers.length > 0)) {
+            this.errorMessage = "Can't use fast solver if a minimum number of numbers is specified or if there are any locked numbers.";
+            return false;
+        }
+        return true;
     }
 
     getErrorMessage() {
@@ -62,6 +73,30 @@ class NumbersProblem {
         return this.strategy;
     }
 
+    setMinNumbersUsed(count) {
+        this.minNumbersUsed = count;
+    }
+
+    getMinNumbersUsed() {
+        return this.minNumbersUsed;
+    }
+
+    setMaxNumbersUsed(count) {
+        this.maxNumbersUsed = count;
+    }
+
+    getMaxNumbersUsed() {
+        return this.maxNumbersUsed;
+    }
+
+    setLockedNumbers(locked) {
+        this.lockedNumbers = locked;
+    }
+
+    getLockedNumbers() {
+        return this.lockedNumbers;
+    }
+
     toQueryString() {
         let qStr = "?sel=" + encodeURIComponent(this.selection.join(uriSelSep));
         if (this.target != null) {
@@ -73,7 +108,27 @@ class NumbersProblem {
         else if (this.strategy == STRATEGY_FAST_CUT) {
             qStr += "&fastcut";
         }
+
+        if (this.minNumbersUsed != null) {
+            qStr += "&min=" + this.minNumbersUsed.toString();
+        }
+        if (this.maxNumbersUsed != null) {
+            qStr += "&max=" + this.maxNumbersUsed.toString();
+        }
+
+        if (this.lockedNumbers.length > 0) {
+            qStr += "&lock=" + encodeURIComponent(this.lockedNumbers.join(uriSelSep));
+        }
+
         return qStr;
+    }
+
+    equalsExceptTarget(other) {
+        return this.strategy == other.strategy &&
+            selectionsEqual(this.getSelection(), other.getSelection()) &&
+            this.minNumbersUsed == other.minNumbersUsed &&
+            this.maxNumbersUsed == other.maxNumbersUsed &&
+            selectionsEqual(this.lockedNumbers, other.lockedNumbers);
     }
 }
 
@@ -180,6 +235,9 @@ function makeNumbersProblemFromInput(input, targetInputValue) {
     let target = null;
     let nextIsTarget = false;
     let strategy = STRATEGY_ALL_SOLUTIONS;
+    let minNumbersUsed = null;
+    let maxNumbersUsed = null;
+    let lockedNumbers = [];
 
     input = input.replace(/^\s+|\s+$/g, "");
     input = input.toLowerCase();
@@ -209,6 +267,23 @@ function makeNumbersProblemFromInput(input, targetInputValue) {
         else if (param === "fast") {
             strategy = STRATEGY_FAST;
         }
+        else if (param.indexOf('=') >= 0) {
+            let nameValue = param.split('=');
+            let name = nameValue[0];
+            let value = nameValue[1];
+            if (name == "min" || name == "max") {
+                let count = parseInt(value);
+                if (isNaN(count)) {
+                    return new NumbersProblem(null, null, "Invalid value for parameter \"" + name + "\": " + value);
+                }
+                if (name == "min") {
+                    minNumbersUsed = count;
+                }
+                else {
+                    maxNumbersUsed = count;
+                }
+            }
+        }
         else {
             if (param.substr(0, 1) === "@") {
                 /* If a word begins with @, the rest of it is the target */
@@ -226,6 +301,13 @@ function makeNumbersProblemFromInput(input, targetInputValue) {
                 }
             }
             else {
+                let locked = false;
+                if (param.charAt(0).toUpperCase() == "L") {
+                    /* Number begins with L -> locked number */
+                    locked = true;
+                    param = param.substring(1);
+                }
+
                 /* This should be an integer. If it isn't, complain at the
                  * user. */
                 let n = parseInt(param);
@@ -243,6 +325,9 @@ function makeNumbersProblemFromInput(input, targetInputValue) {
                 }
                 else {
                     selection.push(n);
+                    if (locked) {
+                        lockedNumbers.push(n);
+                    }
                 }
             }
 
@@ -284,8 +369,31 @@ function makeNumbersProblemFromInput(input, targetInputValue) {
     }
 
     let np = new NumbersProblem(selection, target);
+    
     np.setStrategy(strategy);
+
+    if (minNumbersUsed != null)
+        np.setMinNumbersUsed(minNumbersUsed);
+    if (maxNumbersUsed != null)
+        np.setMaxNumbersUsed(maxNumbersUsed);
+    if (lockedNumbers.length > 0)
+        np.setLockedNumbers(lockedNumbers);
+
     return np;
+}
+
+function makeFreqMap(locked) {
+    let lockedCounts = {};
+    for (let i = 0; i < locked.length; ++i) {
+        let n = locked[i];
+        if (lockedCounts[n] == undefined) {
+            lockedCounts[n] = 1;
+        }
+        else {
+            lockedCounts[n] += 1;
+        }
+    }
+    return lockedCounts;
 }
 
 function queryStringToDict(queryString) {
@@ -329,6 +437,9 @@ function makeNumbersProblemFromQueryString(queryString) {
 
     let selection;
     let target = null;
+    let lockedNumbers = [];
+    let minNumbersUsed = null;
+    let maxNumbersUsed = null;
 
     if ("sel" in dict) {
         let selectionStr = dict["sel"];
@@ -347,6 +458,20 @@ function makeNumbersProblemFromQueryString(queryString) {
         return null;
     }
 
+    if ("lock" in dict) {
+        let lockedStr = dict["lock"];
+        let lockedArr = lockedStr.split(uriSelSep);
+        lockedNumbers = [];
+        for (let i = 0; i < lockedArr.length; ++i) {
+            let n = parseInt(lockedArr[i]);
+            if (isNaN(n)) {
+                console.log("Ignoring query string " + queryString + ": invalid locked number " + lockedArr[i] + ".");
+                return null;
+            }
+            lockedNumbers.push(n);
+        }
+    }
+
     if ("target" in dict) {
         let n = parseInt(dict["target"]);
         if (isNaN(n)) {
@@ -354,6 +479,24 @@ function makeNumbersProblemFromQueryString(queryString) {
             return null;
         }
         target = n;
+    }
+
+    if ("min" in dict) {
+        let n = parseInt(dict["min"]);
+        if (isNaN(n)) {
+            console.log("Ignoring query string " + queryString + ": invalid min value " + dict["min"] + ".");
+            return null;
+        }
+        minNumbersUsed = n;
+    }
+
+    if ("max" in dict) {
+        let n = parseInt(dict["max"]);
+        if (isNaN(n)) {
+            console.log("Ignoring query string " + queryString + ": invalid max value " + dict["max"] + ".");
+            return null;
+        }
+        maxNumbersUsed = n;
     }
 
     let numbersProblem = new NumbersProblem(selection, target);
@@ -365,6 +508,13 @@ function makeNumbersProblemFromQueryString(queryString) {
         strategy = STRATEGY_ALL_SOLUTIONS;
     }
     numbersProblem.setStrategy(strategy);
+
+    if (minNumbersUsed != null)
+        numbersProblem.setMinNumbersUsed(minNumbersUsed);
+    if (maxNumbersUsed != null)
+        numbersProblem.setMaxNumbersUsed(maxNumbersUsed);
+    if (lockedNumbers.length > 0)
+        numbersProblem.setLockedNumbers(lockedNumbers);
 
     return numbersProblem;
 }
@@ -1035,9 +1185,12 @@ function discardSelection() {
     discardContents(selectionRack);
 }
 
-function setProblemStatement(selection, target) {
+function setProblemStatement(selection, target, minNumbersUsed=null,
+            maxNumbersUsed=null, lockedNumbers=[]) {
     /* Show our understanding of what the problem is, i.e. the numbers and
      * target we used. */
+    let lockedNumbersCounts = makeFreqMap(lockedNumbers);
+
     let selectionRack = document.getElementById("selectionrack");
     if (selectionRack) {
         discardContents(selectionRack);
@@ -1062,14 +1215,41 @@ function setProblemStatement(selection, target) {
         selectionBorder.className = "selectioncellsborder";
         for (let i = 0; i < selection.length; ++i) {
             let numberDiv = document.createElement("div");
+            let n = selection[i];
             numberDiv.classList.add("selectioncell");
-            numberDiv.innerHTML = selection[i].toString();
+            numberDiv.innerHTML = n.toString();
+            if (n in lockedNumbersCounts && lockedNumbersCounts[n] > 0) {
+                lockedNumbersCounts[n] -= 1;
+                numberDiv.classList.add("selectioncelllocked");
+            }
             selectionBorder.appendChild(numberDiv);
             if (i == 0)
                 numberDiv.insertAdjacentHTML("beforebegin", "&nbsp;");
             numberDiv.insertAdjacentHTML("afterend", "&nbsp;");
         }
         selectionRack.appendChild(selectionBorder);
+
+        if (minNumbersUsed != null || maxNumbersUsed != null) {
+            let footer = document.createElement("div");
+            footer.classList.add("selectionfooter");
+            footer.innerText = "";
+            if (minNumbersUsed != null) {
+                footer.innerText += "Minimum " + minNumbersUsed.toString() + " numbers";
+            }
+            if (maxNumbersUsed != null) {
+                if (footer.innerText != "") {
+                    footer.innerText += ", m";
+                }
+                else {
+                    footer.innerText = "M";
+                }
+                footer.innerText += "aximum " + maxNumbersUsed.toString() + " numbers";
+            }
+            if (footer.innerText != "") {
+                footer.innerText += ".";
+            }
+            selectionBorder.appendChild(footer);
+        }
     }
 
     if (target == null) {
@@ -1157,7 +1337,8 @@ function outputPuzzleSolutions(results, problem) {
     }
 
     /* Show the selection and the target. */
-    setProblemStatement(selection, target);
+    setProblemStatement(selection, target, problem.getMinNumbersUsed(),
+            problem.getMaxNumbersUsed(), problem.getLockedNumbers());
 
     if (showNearbyTargets) {
         /* Colour the backgrounds of the target and nearby targets according
@@ -1296,7 +1477,9 @@ function startSolve(numbersProblem) {
         hideTargetRack();
     }
 
-    setProblemStatement(numbersProblem.getSelection(), numbersProblem.getTarget());
+    setProblemStatement(numbersProblem.getSelection(),
+            numbersProblem.getTarget(), numbersProblem.getMinNumbersUsed(),
+            numbersProblem.getMaxNumbersUsed(), numbersProblem.getLockedNumbers());
     setTargetRackSolutionCounts(numbersProblem.getTarget(), null, numbersProblem.isAllSolutions());
 
     /* If we've clicked a target in the target map, we don't want any queued
@@ -1317,10 +1500,8 @@ function startSolve(numbersProblem) {
     removeError();
     hideWelcome();
 
-    if (currentResults != null &&
-            currentProblem.getStrategy() == numbersProblem.getStrategy() &&
-            currentProblem.isAllTargets() &&
-            selectionsEqual(numbersProblem.getSelection(), currentResults.getSelection())) {
+    if (currentResults != null && currentProblem.isAllTargets() &&
+            currentProblem.equalsExceptTarget(numbersProblem)) {
         /* We've been asked to solve a puzzle which has the same selection as
          * the one we last solved, so just use the existing results object. */
         currentProblem = numbersProblem;
@@ -1339,18 +1520,23 @@ function startSolve(numbersProblem) {
             solverRunAllSolutions(numbersProblem.getSelection(),
                     numbersProblem.getTarget(), desktopProgressCallback,
                     desktopSolvePuzzleFinishedCallback, targetRackMin,
-                    targetRackMax);
+                    targetRackMax, numbersProblem.getMinNumbersUsed(),
+                    numbersProblem.getMaxNumbersUsed(),
+                    numbersProblem.getLockedNumbers());
         }
         else if (numbersProblem.isAllTargets() || numbersProblem.getTarget() == null) {
             solverRunAllTargets(numbersProblem.getSelection(),
                     numbersProblem.getTarget(), desktopProgressCallback,
                     desktopSolvePuzzleFinishedCallback, targetRackMin,
-                    targetRackMax);
+                    targetRackMax, numbersProblem.getMinNumbersUsed(),
+                    numbersProblem.getMaxNumbersUsed(),
+                    numbersProblem.getLockedNumbers());
         }
         else {
             solverRun(numbersProblem.getSelection(),
                     numbersProblem.getTarget(), desktopProgressCallback,
-                    desktopSolvePuzzleFinishedCallback);
+                    desktopSolvePuzzleFinishedCallback,
+                    numbersProblem.getMaxNumbersUsed());
         }
     }
 
@@ -1358,13 +1544,37 @@ function startSolve(numbersProblem) {
      * formatted nicely and without any weirdness the user might have entered */
     let inputElement = document.getElementById("solverinput");
     let targetElement = document.getElementById("targetinput");
-    inputElement.value = numbersProblem.getSelection().join(" ");
+
+    /* Put the selection in the input box, preceding every locked number with
+     * an L. */
+    let selection = numbersProblem.getSelection();
+    let lockedCounts = makeFreqMap(numbersProblem.getLockedNumbers());
+
+    inputElement.value = "";
+    for (let i = 0; i < selection.length; ++i) {
+        let n = selection[i];
+        if (i > 0) {
+            inputElement.value += " ";
+        }
+        if (lockedCounts[n] !== undefined && lockedCounts[n] > 0) {
+            inputElement.value += "L";
+            lockedCounts[n] -= 1;
+        }
+        inputElement.value += n.toString();
+    }
+
     switch (numbersProblem.getStrategy()) {
         case STRATEGY_FAST:
             if (numbersProblem.getSelection().length <= SELECTION_MAX_FULL) {
                 inputElement.value += " fast";
             }
             break;
+    }
+    if (numbersProblem.getMinNumbersUsed() != null) {
+        inputElement.value += " min=" + numbersProblem.getMinNumbersUsed().toString();
+    }
+    if (numbersProblem.getMaxNumbersUsed() != null) {
+        inputElement.value += " max=" + numbersProblem.getMaxNumbersUsed().toString();
     }
     if (numbersProblem.getTarget() != null) {
         targetElement.value = numbersProblem.getTarget().toString();
@@ -1566,15 +1776,20 @@ function nearbyTargetClick(away) {
         let newProblem = new NumbersProblem(currentProblem.getSelection(),
                 currentProblem.getTarget() + away);
         newProblem.setStrategy(currentProblem.getStrategy());
+        newProblem.setMinNumbersUsed(currentProblem.getMinNumbersUsed());
+        newProblem.setMaxNumbersUsed(currentProblem.getMaxNumbersUsed());
+        newProblem.setLockedNumbers(currentProblem.getLockedNumbers());
         startSolve(newProblem);
     }
 }
 
 function targetMapClick(target) {
     if (currentProblem) {
-        let newProblem = new NumbersProblem(currentProblem.getSelection(),
-                target);
+        let newProblem = new NumbersProblem(currentProblem.getSelection(), target);
         newProblem.setStrategy(currentProblem.getStrategy());
+        newProblem.setMinNumbersUsed(currentProblem.getMinNumbersUsed());
+        newProblem.setMaxNumbersUsed(currentProblem.getMaxNumbersUsed());
+        newProblem.setLockedNumbers(currentProblem.getLockedNumbers());
         startSolve(newProblem);
     }
 }

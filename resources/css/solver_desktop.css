@@ -385,6 +385,20 @@ div.selectioncell {
     box-shadow: 2px 2px 4px gray;
 }
 
+div.selectioncelllocked {
+    background-color: #ff5555;
+    color: black;
+}
+
+div.selectionfooter {
+    position: relative;
+    display: block;
+    text-align: right;
+    font-size: 10pt;
+    margin-top: 5px;
+    color: gray;
+}
+
 #outputsection {
     clear: both;
     width: 100%;
@@ -631,4 +645,15 @@ div.targetmapkeycell {
 
 div.targetmapfastkeycell {
     width: 60px;
+}
+
+table.shortcuts {
+    margin-left: 20px;
+    margin-right: 20px;
+    border-bottom: 1px solid silver;
+    border-collapse: collapse;
+}
+
+table.shortcuts td {
+    border-top: 1px solid silver;
 }

@@ -151,6 +151,27 @@ behaviour of the solver.
         as the target. Useful if you don't want the hassle of moving
         all the way over to the other box to type the target.</td>
 </tr>
+<tr>
+    <td class="shortcut">min=<span style="font-style: italic">x</span></td>
+    <td>A solution must use at least <span style="font-style: italic">x</span>
+        of the numbers in the selection to be valid. By default there is no
+        minimum. This option is not compatible with the
+        <span style="font-family: monospace;">fast</span> option.</td>
+</tr>
+<tr>
+    <td class="shortcut">max=<span style="font-style: italic">x</span></td>
+    <td>A valid solution may not use more than <span style="font-style: italic">x</span>
+        of the numbers in the selection. By default there is no maximum.</td>
+</tr>
+<tr>
+    <td class="shortcut">L<span style="font-style: italic">n</span></td>
+    <td>Any number preceded with <span style="font-family: monospace">L</span>
+        is "locked", which means a solution must use it to be valid. Any
+        or all of the numbers in the selection may be locked.
+        This is not compatible with the
+        <span style="font-family: monospace; font-style: italic;">fast</span>
+        option.</td>
+</tr>
 </table>
 
 <h1>Technical detail</h1>
@@ -197,11 +218,13 @@ is the only solution or what other solutions may exist.
 </p>
 <h2>Useless operations</h2>
 <p>
-Trivially redundant operations which are never useful in the game are always
-ignored and not included in the expression. This includes introducing more
-operations to an expression after it has reached the target, multiplying or
-dividing by 1, or any part of an expression being equivalent to
-2x&nbsp;&minus;&nbsp;x or x²&nbsp;/&nbsp;x.
+Provided there is no minimum number of numbers to use
+(<span style="font-family: monospace">min=<span style="font-style: italic">x</span></span>)
+and there are no locked numbers, trivially redundant operations which are never
+useful in the game are always ignored and not included in the expression. This
+includes introducing more operations to an expression after it has reached the
+target, multiplying or dividing by 1, or any part of an expression being
+equivalent to 2x&nbsp;&minus;&nbsp;x or x²&nbsp;/&nbsp;x.
 </p>
 
 </p>

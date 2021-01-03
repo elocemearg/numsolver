@@ -38,25 +38,52 @@ function runNextTest() {
     else {
         var testCase = testCases[testNum];
 
-        if (fastSolve) {
-            solverRun(testCase.selection, testCase.target, null, testFinished);
+        var fastSolveThis = (fastSolve && testCase.minNumbersUsed == undefined && testCase.lockedNumbers == undefined);
+        let minNumbersUsed = null;
+        let maxNumbersUsed = null;
+        let lockedNumbers = [];
+        if (testCase.minNumbersUsed !== undefined)
+            minNumbersUsed = testCase.minNumbersUsed;
+        if (testCase.maxNumbersUsed !== undefined)
+            maxNumbersUsed = testCase.maxNumbersUsed;
+        if (testCase.lockedNumbers !== undefined)
+            lockedNumbers = testCase.lockedNumbers;
+
+        if (fastSolveThis) {
+            solverRun(testCase.selection, testCase.target, null, testFinished, maxNumbersUsed);
         }
         else {
-            solverRunAllSolutions(testCase.selection, testCase.target, null, testFinishedAllSolutions);
+            solverRunAllSolutions(testCase.selection, testCase.target, null,
+                    testFinishedAllSolutions, null, null, minNumbersUsed,
+                    maxNumbersUsed, lockedNumbers);
         }
     }
 }
 
 function makeTestReportPreamble(testNum, testCase) {
     var selectionString = "";
+    var constraints = "";
     for (var i = 0; i < testCase.selection.length; ++i) {
         if (i > 0)
             selectionString += " ";
         selectionString += testCase.selection[i].toString();
     }
+    if (testCase.minNumbersUsed !== undefined) {
+        constraints += "min " + testCase.minNumbersUsed.toString() + " ";
+    }
+    if (testCase.maxNumbersUsed !== undefined) {
+        constraints += "max " + testCase.maxNumbersUsed.toString() + " ";
+    }
+    if (testCase.lockedNumbers !== undefined) {
+        constraints += "locked [" + testCase.lockedNumbers.toString() + "] ";
+    }
+    if (constraints != "") {
+        constraints = " (" + constraints.trim() + ")";
+    }
     return "Test " + (testNum + 1).toString() +
             " of " + testCases.length.toString() + ": " +
-            selectionString + " -> " + testCase.target.toString() + " ... ";
+            selectionString + " -> " + testCase.target.toString() +
+            constraints + " ... ";
 }
 
 function testFinishedAllSolutions(solverResult) {

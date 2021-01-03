@@ -205,6 +205,10 @@ class BinaryTreeExpression extends Expression {
         return this.countNumbersUsed;
     }
 
+    getCountSpecificNumberUsed(n) {
+        return this.leftExp.getCountSpecificNumberUsed(n) + this.rightExp.getCountSpecificNumberUsed(n);
+    }
+
     toString() {
         var leftStr = this.leftExp.toString();
         var rightStr = this.rightExp.toString();
@@ -284,6 +288,14 @@ class SingleNumber extends Expression {
 
     getCountNumbersUsed() {
         return 1;
+    }
+
+    getNumbersUsed() {
+        return this.numbersUsed;
+    }
+
+    getCountSpecificNumberUsed(n) {
+        return (n == this.value ? 1 : 0);
     }
 
     toString() {
@@ -617,6 +629,17 @@ class OrderedExpression extends Expression {
         return this.countNumbersUsed;
     }
 
+    getCountSpecificNumberUsed(n) {
+        let count = 0;
+        for (let i = 0; i < this.leftExpressions.length; ++i) {
+            count += this.leftExpressions[i].getCountSpecificNumberUsed(n);
+        }
+        for (let i = 0; i < this.rightExpressions.length; ++i) {
+            count += this.rightExpressions[i].getCountSpecificNumberUsed(n);
+        }
+        return count;
+    }
+
     getOperatorType() {
         return this.operatorType;
     }
@@ -901,6 +924,31 @@ class SolverState {
          * If both are null, then nothing goes into imperfectMap. */
         this.imperfectMin = null;
         this.imperfectMax = null;
+
+        /* The minimum and maximum number of numbers that must be used by
+         * each returned solution. By default they are 1 and the number of
+         * numbers in the selection (that is, unrestricted). */
+        this.minNumbersUsed = null;
+        this.maxNumbersUsed = null;
+
+        /* Which numbers in the selection must appear in every returned
+         * solution, as a mapping of n -> count. For example, { 4: 3, 6: 1 }
+         * means every valid solution must contain at least three 4s and one 6.
+         * By default this is the empty dictionary - no specific number
+         * is required to appear. */
+        this.lockedNumbers = [];
+        this.lockedNumbersCounts = {};
+
+        /* By default, don't bother multiplying or dividing by numbers less
+         * than 2. However, if we have a constraint on the minimum number of
+         * numbers to use, or a 1 is locked, we'll allow multiplying or
+         * dividing by 1. */
+        this.minMultiplier = 2;
+
+        /* If minNumbersUsed > 1 or any numbers are locked, it might be
+         * required to do something like (y + x - x). */
+        this.allowAddZero = false;
+        this.allowUselessDivision = false;
     }
 
     isAllSolutions() {
@@ -924,11 +972,65 @@ class SolverState {
         }
     }
 
-    start(selection, target, imperfectMin=null, imperfectMax=null) {
+    start(selection, target, imperfectMin=null, imperfectMax=null,
+            minNumbersUsed=null, maxNumbersUsed=null, lockedNumbers=[]) {
         this.selection = selection;
         this.target = target;
         this.imperfectMin = imperfectMin;
         this.imperfectMax = imperfectMax;
+        this.minNumbersUsed = minNumbersUsed;
+        this.maxNumbersUsed = maxNumbersUsed;
+
+        if (this.minNumbersUsed == null) {
+            this.minNumbersUsed = 1;
+        }
+        if (this.maxNumbersUsed == null) {
+            this.maxNumbersUsed = this.selection.length;
+        }
+        if (this.maxNumbersUsed > this.selection.length) {
+            this.maxNumbersUsed = this.selection.length;
+        }
+
+        this.lockedNumbers = lockedNumbers;
+        this.lockedNumbersCounts = {};
+        for (let i = 0; i < lockedNumbers.length; ++i) {
+            let n = lockedNumbers[i];
+            if (this.lockedNumbersCounts[n] !== undefined) {
+                this.lockedNumbersCounts[n] += 1;
+            }
+            else {
+                this.lockedNumbersCounts[n] = 1;
+            }
+        }
+
+        /* Check that the list of locked numbers is a subset of the selection.
+         */
+        for (let n in this.lockedNumbersCounts) {
+            let count = this.lockedNumbersCounts[n];
+            for (let i = 0; i < selection.length; ++i) {
+                if (selection[i] == n) {
+                    count--;
+                }
+            }
+            if (count > 0) {
+                this.finishedCallback(
+                        new SolverResults(
+                            selection, target, null, null,
+                            "Locked numbers is not a subset of the selection."
+                        )
+                );
+                this.reset();
+                return;
+            }
+        }
+
+        if (this.minNumbersUsed > 1 || 1 in this.lockedNumbersCounts) {
+            this.minMultiplier = 1;
+        }
+        if (this.minNumbersUsed > 1 || this.lockedNumbers.length > 0) {
+            this.allowAddZero = true;
+            this.allowUselessDivision = true;
+        }
         
         if (this.selection.length < 2) {
             this.finishedCallback(
@@ -946,6 +1048,47 @@ class SolverState {
                         selection, target, null, null,
                         "Selection may not contain more than " + this.selectionMax.toString() + " numbers" + (!this.isAllSolutions() ? "." : " in all-solutions mode.")
                     )
+            );
+            this.reset();
+            return;
+        }
+
+        if (this.minNumbersUsed < 1) {
+            this.finishedCallback(
+                    new SolverResults(
+                        selection, target, null, null,
+                        "Minimum numbers to use (" + this.minNumbersUsed.toString() + ") must be at least 1."
+                    )
+            );
+            this.reset();
+            return;
+        }
+
+        if (this.maxNumbersUsed < 2) {
+            this.finishedCallback(
+                    new SolverResults(
+                        selection, target, null, null,
+                        "Maximum numbers to use (" + this.maxNumbersUsed.toString() + ") must be at least 2."
+                    )
+            );
+            this.reset();
+            return;
+        }
+
+        if (this.minNumbersUsed > this.selection.length) {
+            this.finishedCallback(
+                    new SolverResults(
+                        selection, target, null, null,
+                        "Minimum numbers to use (" + this.minNumbersUsed.toString() + ") may not be greater than the number of numbers in the selection (" + this.selection.length.toString() + ").")
+            );
+            this.reset();
+            return;
+        }
+        if (this.minNumbersUsed > this.maxNumbersUsed) {
+            this.finishedCallback(
+                    new SolverResults(
+                        selection, target, null, null,
+                        "Minimum numbers to use (" + this.minNumbersUsed.toString() + ") may not be greater than the maximum (" + this.maxNumbersUsed.toString() + ").")
             );
             this.reset();
             return;
@@ -1029,13 +1172,14 @@ class SolverState {
                 if (this.imperfectMin != null || this.imperfectMax != null) {
                     if ((this.imperfectMin == null || exp.getValue() >= this.imperfectMin) &&
                             (this.imperfectMax == null || exp.getValue() <= this.imperfectMax) &&
-                            !(exp.getValue() in this.imperfectMap)) {
+                            !(exp.getValue() in this.imperfectMap) &&
+                            this.meetsSolutionConstraints(exp)) {
                         this.addToImperfectMap(exp);
                     }
                 }
             }
 
-            if (target != null && exp.getValue() == target) {
+            if (target != null && exp.getValue() == target && this.meetsSolutionConstraints(exp)) {
                 if (this.isStopAfterSolutionFound()) {
                     /* If the target is in the selection, just return the single
                      * expression containing that number */
@@ -1051,7 +1195,6 @@ class SolverState {
                     this.nearestExpList = [exp];
                 }
             }
-
         }
 
         /* The expression length we're generating currently. */
@@ -1077,11 +1220,11 @@ class SolverState {
         var stepStartTime = Date.now();
 
         /* Generate all the two-number expressions, then all the three-number
-         * expressions, and so on, up to the selection.length-number
+         * expressions, and so on, up to the maxNumbersUsed-number
          * expressions. Note that these for-loops don't have initialisers -
          * that's because this is designed to be returned from mid-solve so we
          * can pick up from wherever we left off. */
-        for (; this.soughtExpressionLength <= this.selection.length; this.soughtExpressionLength++) {
+        for (; this.soughtExpressionLength <= this.maxNumbersUsed; this.soughtExpressionLength++) {
             /* If we're generating expressions of length N, we first want
              * expression pairs of length 1 and N-1, then 2 and N-2, and so on
              * until (N-1)/2 and (N+1)/2 (if N is odd) or N/2 and N/2 (if N is
@@ -1138,25 +1281,25 @@ class SolverState {
                             for (var op = 0; op < 4; ++op) {
                                 /* Also we don't need to divide by 1, or divide
                                  * A by B if A isn't a multiple of B. */
-                                if (op == DIVIDE && (rightValue < 2 || leftValue % rightValue != 0))
+                                if (op == DIVIDE && (rightValue < this.minMultiplier || leftValue % rightValue != 0))
                                     continue;
 
                                 /* Don't bother multiplying by 0 or 1 */
-                                if (op == TIMES && (leftValue < 2 || rightValue < 2))
+                                if (op == TIMES && (leftValue < this.minMultiplier || rightValue < this.minMultiplier))
                                     continue;
 
                                 /* We don't ever need to subtract x from 2x,
                                  * because the answer will be x, which we
                                  * already have. For example, 10 - 5 is always
                                  * useless. */
-                                if (op == MINUS && leftValue == rightValue * 2)
+                                if (op == MINUS && !this.allowAddZero && leftValue == rightValue * 2)
                                     continue;
 
                                 /* We don't ever need to divide a number by its
                                  * square root, because the square root will
                                  * be the answer, which we already have. e.g.
                                  * we never need to do 9 / 3 or 25 / 5. */
-                                if (op == DIVIDE && leftValue == rightValue * rightValue)
+                                if (op == DIVIDE && !this.allowUselessDivision && leftValue == rightValue * rightValue)
                                     continue;
 
                                 var newExp;
@@ -1167,7 +1310,9 @@ class SolverState {
                                     newExp = new OrderedExpression(exp1, exp2, op);
                                 }
 
-                                if (newExp.isUseless()) {
+                                if (this.minNumbersUsed <= 1 &&
+                                       this.lockedNumbers.length == 0 &&
+                                       newExp.isUseless()) {
                                     continue;
                                 }
 
@@ -1212,7 +1357,7 @@ class SolverState {
                                  * to need to combine it with another
                                  * expression because expressions can't be
                                  * longer than this. */
-                                if (this.soughtExpressionLength == this.selection.length && this.nearestExp != null) {
+                                if (this.soughtExpressionLength == this.maxNumbersUsed && this.nearestExp != null) {
                                     if (this.target != null && Math.abs(resultValue - this.target) > Math.abs(this.nearestExp.getValue() - this.target)) {
                                         if ((this.imperfectMin != null &&
                                                     resultValue < this.imperfectMin) ||
@@ -1298,7 +1443,8 @@ class SolverState {
                                             (this.imperfectMin == null ||
                                              resultValue >= this.imperfectMin) &&
                                             (this.imperfectMax == null ||
-                                             resultValue <= this.imperfectMax)) {
+                                             resultValue <= this.imperfectMax) &&
+                                            this.meetsSolutionConstraints(newExp)) {
                                         this.addToImperfectMap(newExp);
                                     }
                                 }
@@ -1308,7 +1454,7 @@ class SolverState {
                                     expressionsThisStep++;
                                 }
 
-                                if (addExp && this.target != null) {
+                                if (addExp && this.target != null && this.meetsSolutionConstraints(newExp)) {
                                     /* If the value of this expression is
                                      * closer to the target than the closest
                                      * we've found so far, remember it. */
@@ -1382,6 +1528,9 @@ class SolverState {
         var timeMs = Date.now() - this.startTime;
         console.log(this.selectionString +
                 (this.target == null ? "" : (" -> " + this.target.toString() +
+                " (min " + this.minNumbersUsed.toString() + ", max " +
+                this.maxNumbersUsed.toString() + ", locked [" +
+                this.lockedNumbers.toString() + "])" +
                 ": best is " + (this.nearestExp == null ? "unknown" : this.nearestExp.getValue().toString()))) + ". "
                 + this.numExpressions +  " expressions, " +
                 timeMs.toString() + "ms.");
@@ -1398,6 +1547,22 @@ class SolverState {
         this.reset();
     }
 
+    meetsSolutionConstraints(exp) {
+        let numbersUsed = exp.getCountNumbersUsed();
+        
+        if (numbersUsed < this.minNumbersUsed || numbersUsed > this.maxNumbersUsed) {
+            return false;
+        }
+
+        for (let n in this.lockedNumbersCounts) {
+            let requiredCount = this.lockedNumbersCounts[n];
+            if (exp.getCountSpecificNumberUsed(n) < requiredCount) {
+                return false;
+            }
+        }
+
+        return true;
+    }
 
     reset() {
         this.expressions = null;
@@ -1472,26 +1637,35 @@ class SolverState {
  */
 
 function solverRunAux(selection, target, progressCallback, finishedCallback,
-        strategy, imperfectSolutionsMin=null, imperfectSolutionsMax=null) {
+        strategy, imperfectSolutionsMin=null, imperfectSolutionsMax=null,
+        minNumbersUsed=null, maxNumbersUsed=null, lockedNumbers=[]) {
     var solverState = new SolverState(progressCallback, finishedCallback, strategy);
-    solverState.start(selection, target, imperfectSolutionsMin, imperfectSolutionsMax);
+    solverState.start(selection, target, imperfectSolutionsMin,
+            imperfectSolutionsMax, minNumbersUsed, maxNumbersUsed,
+            lockedNumbers);
 }
 
-function solverRun(selection, target, progressCallback, finishedCallback) {
+function solverRun(selection, target, progressCallback, finishedCallback,
+        maxNumbersUsed=null) {
     solverRunAux(selection, target, progressCallback, finishedCallback,
-            STRATEGY_FAST_CUT);
+            STRATEGY_FAST_CUT, null, null, null, maxNumbersUsed, []);
 }
 
 function solverRunAllTargets(selection, target, progressCallback,
         finishedCallback, imperfectSolutionsMin=null,
-        imperfectSolutionsMax=null) {
+        imperfectSolutionsMax=null, minNumbersUsed=null, maxNumbersUsed=null,
+        lockedNumbers=[]) {
     solverRunAux(selection, target, progressCallback, finishedCallback,
-            STRATEGY_FAST, imperfectSolutionsMin, imperfectSolutionsMax);
+            STRATEGY_FAST, imperfectSolutionsMin, imperfectSolutionsMax,
+            minNumbersUsed, maxNumbersUsed, lockedNumbers);
 }
 
 function solverRunAllSolutions(selection, target, progressCallback,
-        finishedCallback, imperfectSolutionsMin=null, imperfectSolutionsMax=null) {
+        finishedCallback, imperfectSolutionsMin=null,
+        imperfectSolutionsMax=null, minNumbersUsed=null, maxNumbersUsed=null,
+        lockedNumbers=[]) {
     solverRunAux(selection, target, progressCallback, finishedCallback,
             STRATEGY_ALL_SOLUTIONS, imperfectSolutionsMin,
-            imperfectSolutionsMax);
+            imperfectSolutionsMax, minNumbersUsed, maxNumbersUsed,
+            lockedNumbers);
 }
