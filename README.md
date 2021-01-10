@@ -32,12 +32,26 @@ This section is intended for developers who want to use the solver engine in the
 3. `progressCallback`: a function for the engine to call after each solving step with progress information. This is useful for updating a progress indicator on the page if the solve is taking a long time. It may be `null`, in which case no progress information is reported. It takes a single argument which is a `SolverProgress` object, detailed below.
 4. `finishedCallback`: a function for the engine to call when it's finished, to pass you the solution or solutions. Its single argument is a `SolverResults` object, detailed below.
 
-In addition, `solverRunAllSolutions()` and `solverRunAllTargets()` take two further arguments, which are optional and default to `null`:
+In addition, `solverRunAllSolutions()` and `solverRunAllTargets()` take five further arguments, which are optional:
 
-5. `imperfectSolutionsMin` 
-6. `imperfectSolutionsMax`
+5. `imperfectSolutionsMin` (integer, default null)
+6. `imperfectSolutionsMax` (integer, default null)
+7. `minNumbersUsed` (integer, default null)
+8. `maxNumbersUsed` (integer, default null) (this is also present in `solverRun()`
+9. `lockedNumbers` (array of integers, default `[]`)
 
 If either `imperfectSolutionsMin` or `imperfectSolutionsMax` are set, then solutions which might not be the best available will be remembered and delivered in the `SolverResults` object passed to `finishedCallback()`, as long as they're within that min-max range. If `target` was `null` then you probably want to set these otherwise you won't get any solutions at all. For example, setting `imperfectSolutionsMin` to 101 and `imperfectSolutionsMax` to 999 will tell the engine to retain all solutions which reach any number between 101 and 999.
+
+If `minNumbersUsed` is not null, then a solution must use at least this many of the starting numbers to be valid. `minNumbersUsed` must be at least 1. If it is null, it is taken as 1.
+
+If `maxNumbersUsed` is not null, then a solution may not use more than this many of the starting numbers. `maxNumbersUsed` must be no less than `minNumbersUsed`. If it is null, it is taken as the number of numbers in the selection, which means no restriction is imposed.
+
+`lockedNumbers` is an array of numbers which must be used by a solution for it to be valid. If specified, this must be a subset of the numbers in the selection.
+
+If `minNumbersUsed` or `lockedNumbers` are given, the solver cannot eliminate
+apparently useless operations such as multiplying by 1. For this reason, the
+number of solutions produced may be unexpectedly higher if either of these
+restructions are specified.
 
 See the description of `SolverResults` for information on how to list the imperfect solutions.
 
@@ -50,7 +64,7 @@ The use cases of three functions range from "here's a numbers selection and a ta
 
 This function is designed as a fast solver - it aggressively eliminates duplicates, makes no attempt to find alternative solutions, and it finishes as soon as it has found one solution to the target or established that none exists.
 
-There is no `imperfectSolutionsMin` or `imperfectSolutionsMax` with this function. The `SolverResults.getImperfectSolutions()` will always return an empty map.
+There is no `imperfectSolutionsMin` or `imperfectSolutionsMax` with this function. The `SolverResults.getImperfectSolutions()` will always return an empty map. You may specify `maxNumbersUsed`.
 
 #### Use `solverRun()` if...
 ... you just want to know whether or not a numbers game is possible, with one example solution to the target or the closest possible to it.
