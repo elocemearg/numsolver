@@ -949,6 +949,15 @@ class SolverState {
          * required to do something like (y + x - x). */
         this.allowAddZero = false;
         this.allowUselessDivision = false;
+
+        /* If imperfectMin and imperfectMax are not both null, this is the
+         * number of distinct targets for which we have found at least one
+         * solution. If imperfectMin == imperfectMax == null, it's always 0. */
+        this.distinctImperfectTargetsFound = 0;
+
+        /* If we solve this number of distinct targets which qualify to be
+         * inserted into imperfectMap, then finish early. */
+        this.maxDistinctImperfectTargets = null;
     }
 
     isAllSolutions() {
@@ -1092,6 +1101,14 @@ class SolverState {
             );
             this.reset();
             return;
+        }
+
+        if (this.imperfectMin != null && this.imperfectMax != null) {
+            this.maxDistinctImperfectTargets = this.imperfectMax - this.imperfectMin + 1;
+            if (this.target != null && (this.target < this.imperfectMin ||
+                        this.target > this.imperfectMax)) {
+                this.maxDistinctImperfectTargets++;
+            }
         }
 
         /* We're allowed to have a null target - this means search the solution
@@ -1324,15 +1341,7 @@ class SolverState {
                                      * STRATEGY_FAST_CUT then we've finished
                                      * and don't need to do anything more. */
                                     if (this.isStopAfterSolutionFound()) {
-										var timeMs = Date.now() - this.startTime;
-										console.log(this.selectionString +
-                                                " -> " + this.target.toString()
-                                                + ": solved. " +
-                                                this.numExpressions +
-                                                " expressions, " +
-                                                timeMs.toString() + "ms. " +
-                                                newExp.toString());
-
+                                        this.logProblemFinished();
                                         if (this.finishedCallback != null) {
                                             this.finishedCallback(
                                                     new SolverResults(
@@ -1482,6 +1491,31 @@ class SolverState {
                                 }
                             }
 
+                            /* If we're not interested in every solution for
+                             * a target, and we've found at least one solution
+                             * for every target in the imperfect map, and we've
+                             * found the actual target (if specified) then
+                             * we can finish early. */
+                            if (!this.isAllSolutions() &&
+                                    this.target != null &&
+                                    this.maxDistinctImperfectTargets != null &&
+                                    this.nearestExp != null &&
+                                    this.nearestExp.getValue() == this.target &&
+                                    this.distinctImperfectTargetsFound >= this.maxDistinctImperfectTargets) {
+                                console.log("Found " + this.distinctImperfectTargetsFound.toString() + " targets for imperfect targets map, finishing early.");
+                                this.logProblemFinished();
+                                if (this.finishedCallback != null) {
+                                    this.finishedCallback(
+                                            new SolverResults(this.selection, this.target,
+                                                [ this.nearestExp ],
+                                                this.isStopAfterSolutionFound() ? {}:this.imperfectMap,
+                                                null)
+                                    );
+                                }
+                                this.reset();
+                                return;
+                            }
+
                             var now = Date.now();
                             var stepElapsedMs = now - stepStartTime;
                             if (stepElapsedMs >= this.dutyCycleOnMs) {
@@ -1525,15 +1559,8 @@ class SolverState {
         /* If we get here, we've searched the entire relevant expression space.
          * Return the expression or expressions that got closest to the target,
          * and any other epxressions that match the filter we've been given. */
-        var timeMs = Date.now() - this.startTime;
-        console.log(this.selectionString +
-                (this.target == null ? "" : (" -> " + this.target.toString() +
-                " (min " + this.minNumbersUsed.toString() + ", max " +
-                this.maxNumbersUsed.toString() + ", locked [" +
-                this.lockedNumbers.toString() + "])" +
-                ": best is " + (this.nearestExp == null ? "unknown" : this.nearestExp.getValue().toString()))) + ". "
-                + this.numExpressions +  " expressions, " +
-                timeMs.toString() + "ms.");
+
+        this.logProblemFinished();
         if (this.finishedCallback != null) {
             this.finishedCallback(
                     new SolverResults(this.selection, this.target,
@@ -1545,6 +1572,18 @@ class SolverState {
             );
         }
         this.reset();
+    }
+
+    logProblemFinished() {
+        let timeMs = Date.now() - this.startTime;
+        console.log(this.selectionString +
+                (this.target == null ? "" : (" -> " + this.target.toString() +
+                " (min " + this.minNumbersUsed.toString() + ", max " +
+                this.maxNumbersUsed.toString() + ", locked [" +
+                this.lockedNumbers.toString() + "])" +
+                ": best is " + (this.nearestExp == null ? "unknown" : this.nearestExp.getValue().toString()))) + ". "
+                + this.numExpressions +  " expressions, " +
+                timeMs.toString() + "ms.");
     }
 
     meetsSolutionConstraints(exp) {
@@ -1589,6 +1628,7 @@ class SolverState {
                 this.imperfectMap[resultValue].push(newExp);
             }
             else {
+                this.distinctImperfectTargetsFound++;
                 this.imperfectMap[resultValue] = [ newExp ];
             }
         }

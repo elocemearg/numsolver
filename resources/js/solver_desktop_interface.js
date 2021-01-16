@@ -97,16 +97,51 @@ class NumbersProblem {
         return this.lockedNumbers;
     }
 
+    getTargetRackMin() {
+        if (this.isAllSolutions() || this.target == null || this.isAllTargets()) {
+            return targetRackMin;
+        }
+        else {
+            return null;
+        }
+    }
+    
+    getTargetRackMax() {
+        if (this.isAllSolutions() || this.target == null || this.isAllTargets()) {
+            return targetRackMax;
+        }
+        else {
+            return null;
+        }
+    }
+
+    isInRackRange(t) {
+        let min, max;
+        if (t < 0)
+            return false;
+
+        min = this.getTargetRackMin();
+        if (min != null && t < min)
+            return false;
+
+        max = this.getTargetRackMax();
+        if (max != null && t > max)
+            return false;
+
+        return true;
+    }
+
     toQueryString() {
+        let defaultStrategy = chooseStrategy(this.selection.length, this.target == null, false, false, false);
         let qStr = "?sel=" + encodeURIComponent(this.selection.join(uriSelSep));
         if (this.target != null) {
             qStr += "&target=" + this.target.toString();
         }
-        if (this.strategy == STRATEGY_FAST) {
+        if (this.strategy == STRATEGY_FAST && defaultStrategy != STRATEGY_FAST) {
             qStr += "&fast";
         }
-        else if (this.strategy == STRATEGY_FAST_CUT) {
-            qStr += "&fastcut";
+        else if (this.strategy == STRATEGY_FAST_CUT && defaultStrategy != STRATEGY_FAST_CUT) {
+            qStr += "&cut";
         }
 
         if (this.minNumbersUsed != null) {
@@ -123,8 +158,9 @@ class NumbersProblem {
         return qStr;
     }
 
-    equalsExceptTarget(other) {
-        return this.strategy == other.strategy &&
+    canDo(other) {
+        return this.isAllTargets() &&
+            this.strategy >= other.strategy &&
             selectionsEqual(this.getSelection(), other.getSelection()) &&
             this.minNumbersUsed == other.minNumbersUsed &&
             this.maxNumbersUsed == other.maxNumbersUsed &&
@@ -150,11 +186,6 @@ function selectionsEqual(s1o, s2o) {
     }
 
     return true;
-}
-
-function isTargetInRackRange(target) {
-    return (target >= 0 && (targetRackMin == null || target >= targetRackMin) &&
-            (targetRackMax == null || target <= targetRackMax));
 }
 
 function HTMLescape(str) {
@@ -234,10 +265,12 @@ function makeNumbersProblemFromInput(input, targetInputValue) {
     let selection = [];
     let target = null;
     let nextIsTarget = false;
-    let strategy = STRATEGY_ALL_SOLUTIONS;
     let minNumbersUsed = null;
     let maxNumbersUsed = null;
     let lockedNumbers = [];
+    let cutSpecified = false;
+    let fastSpecified = false;
+    let allSpecified = false;
 
     input = input.replace(/^\s+|\s+$/g, "");
     input = input.toLowerCase();
@@ -264,8 +297,14 @@ function makeNumbersProblemFromInput(input, targetInputValue) {
              * is the target no matter what we might assume */
             nextIsTarget = true;
         }
+        else if (param === "cut") {
+            cutSpecified = true;
+        }
         else if (param === "fast") {
-            strategy = STRATEGY_FAST;
+            fastSpecified = true;
+        }
+        else if (param === "all") {
+            allSpecified = true;
         }
         else if (param.indexOf('=') >= 0) {
             let nameValue = param.split('=');
@@ -364,11 +403,9 @@ function makeNumbersProblemFromInput(input, targetInputValue) {
     if (selection.length > SELECTION_MAX_FAST) {
         return new NumbersProblem(null, null, "Selection may not contain more than " + SELECTION_MAX_FAST.toString() + " numbers.");
     }
-    else if (selection.length > SELECTION_MAX_FULL) {
-        strategy = STRATEGY_FAST;
-    }
 
     let np = new NumbersProblem(selection, target);
+    let strategy = chooseStrategy(selection.length, target == null, cutSpecified, fastSpecified, allSpecified);
     
     np.setStrategy(strategy);
 
@@ -394,6 +431,26 @@ function makeFreqMap(locked) {
         }
     }
     return lockedCounts;
+}
+
+function chooseStrategy(selectionLength, targetIsNull, cut, fast, all) {
+    let strategy;
+    if (cut && !targetIsNull) {
+        strategy = STRATEGY_FAST_CUT;
+    }
+    else if (selectionLength > SELECTION_MAX_FULL) {
+        if (targetIsNull || all || fast)
+            strategy = STRATEGY_FAST;
+        else
+            strategy = STRATEGY_FAST_CUT;
+    }
+    else {
+        if (fast)
+            strategy = STRATEGY_FAST;
+        else
+            strategy = STRATEGY_ALL_SOLUTIONS;
+    }
+    return strategy;
 }
 
 function queryStringToDict(queryString) {
@@ -500,13 +557,7 @@ function makeNumbersProblemFromQueryString(queryString) {
     }
 
     let numbersProblem = new NumbersProblem(selection, target);
-    let strategy;
-    if (selection.length > SELECTION_MAX_FULL || "fast" in dict) {
-        strategy = STRATEGY_FAST;
-    }
-    else {
-        strategy = STRATEGY_ALL_SOLUTIONS;
-    }
+    let strategy = chooseStrategy(selection.length, target == null, "cut" in dict, "fast" in dict, "all" in dict);
     numbersProblem.setStrategy(strategy);
 
     if (minNumbersUsed != null)
@@ -1048,7 +1099,8 @@ function setDisplayWithTarget() {
 
 /* Fill in the rack of targets either side of the actual target with the
  * 10 target numbers either side. */
-function setTargetRackNumbers(target) {
+function setTargetRackNumbers(problem) {
+    let target = problem.getTarget();
     if (target == null)
         return;
 
@@ -1079,7 +1131,7 @@ function setTargetRackNumbers(target) {
             let numberDiv = document.getElementById(divNames[i]);
             if (numberDiv) {
                 numberDiv.removeAttribute("title");
-                if (isTargetInRackRange(otherTotal)) {
+                if (problem.isInRackRange(otherTotal)) {
                     numberDiv.innerText = otherTotal.toString();
                 }
                 else {
@@ -1098,11 +1150,14 @@ function setTargetRackNumbers(target) {
  * If "solutions" is null, then the solution counts are not known and they're
  * all set to grey.
  *
- * If haveAllSolutions is true, then we write the solution counts in the cells.
- * If it's false then we just write a tick or a cross to indicate that either
- * a solution exists or no solution exists.
+ * If problem.isAllSolutions() is true, then we write the solution counts in
+ * the cells. If it's false then we just write a tick or a cross to indicate
+ * that either a solution exists or no solution exists.
  */
-function setTargetRackSolutionCounts(target, solutions, haveAllSolutions) {
+function setTargetRackSolutionCounts(problem, solutions) {
+    let haveAllSolutions = problem.isAllSolutions();
+    let target = problem.getTarget();
+
     for (let otherTotal = target - targetRackRadius; otherTotal <= target + targetRackRadius; ++otherTotal) {
         let away = otherTotal - target;
         let cellSuffix = "";
@@ -1118,7 +1173,7 @@ function setTargetRackSolutionCounts(target, solutions, haveAllSolutions) {
         if (solutions == null) {
             solutionCount = null;
         }
-        else if (!isTargetInRackRange(otherTotal)) {
+        else if (!problem.isInRackRange(otherTotal)) {
             solutionCount = null;
         }
         else if (otherTotal in solutions) {
@@ -1160,7 +1215,7 @@ function setTargetRackSolutionCounts(target, solutions, haveAllSolutions) {
             targetCell.setAttribute("alt", altText);
             targetCell.setAttribute("title", altText);
         }
-        if (solutions == null || !isTargetInRackRange(otherTotal)) {
+        if (solutions == null || !problem.isInRackRange(otherTotal)) {
             targetCell.removeAttribute("onclick");
             targetCell.style.cursor = null;
         }
@@ -1330,7 +1385,7 @@ function outputPuzzleSolutions(results, problem) {
         /* Show a row of boxes, from -targetRackRadius away to
          * +targetRackRadius away, each of which shows that target and the
          * number of methods of getting there. */
-        setTargetRackNumbers(target);
+        setTargetRackNumbers(problem);
     }
     else {
         hideTargetRack();
@@ -1343,7 +1398,7 @@ function outputPuzzleSolutions(results, problem) {
     if (showNearbyTargets) {
         /* Colour the backgrounds of the target and nearby targets according
          * to the number of solutions each target has. */
-        setTargetRackSolutionCounts(target, allSolutions, problem.isAllSolutions());
+        setTargetRackSolutionCounts(problem, allSolutions);
     }
     else {
         /* If we only have the target box because we're not showing all
@@ -1472,7 +1527,7 @@ function startSolve(numbersProblem) {
         return;
     }
 
-    setTargetRackNumbers(numbersProblem.getTarget());
+    setTargetRackNumbers(numbersProblem);
     if (!numbersProblem.isAllTargets()) {
         hideTargetRack();
     }
@@ -1480,7 +1535,7 @@ function startSolve(numbersProblem) {
     setProblemStatement(numbersProblem.getSelection(),
             numbersProblem.getTarget(), numbersProblem.getMinNumbersUsed(),
             numbersProblem.getMaxNumbersUsed(), numbersProblem.getLockedNumbers());
-    setTargetRackSolutionCounts(numbersProblem.getTarget(), null, numbersProblem.isAllSolutions());
+    setTargetRackSolutionCounts(numbersProblem, null);
 
     /* If we've clicked a target in the target map, we don't want any queued
      * onmouseout event to fiddle with the headline once we've displayed the
@@ -1500,11 +1555,17 @@ function startSolve(numbersProblem) {
     removeError();
     hideWelcome();
 
-    if (currentResults != null && currentProblem.isAllTargets() &&
-            currentProblem.equalsExceptTarget(numbersProblem)) {
+    if (currentResults != null && currentProblem.canDo(numbersProblem)) {
         /* We've been asked to solve a puzzle which has the same selection as
          * the one we last solved, so just use the existing results object. */
+        let oldStrategy = currentProblem.getStrategy();
         currentProblem = numbersProblem;
+
+        /* Keep the old strategy value from the previous problem, since if the
+         * last problem has solutions for every target then we still have the
+         * solution for every target and we don't need to rerun the whole thing
+         * now we've been asked about a specific target. */
+        currentProblem.setStrategy(oldStrategy);
         outputPuzzleSolutions(currentResults, currentProblem);
         //selectInputBox(true);
     }
@@ -1527,8 +1588,10 @@ function startSolve(numbersProblem) {
         else if (numbersProblem.isAllTargets() || numbersProblem.getTarget() == null) {
             solverRunAllTargets(numbersProblem.getSelection(),
                     numbersProblem.getTarget(), desktopProgressCallback,
-                    desktopSolvePuzzleFinishedCallback, targetRackMin,
-                    targetRackMax, numbersProblem.getMinNumbersUsed(),
+                    desktopSolvePuzzleFinishedCallback,
+                    numbersProblem.getTargetRackMin(),
+                    numbersProblem.getTargetRackMax(),
+                    numbersProblem.getMinNumbersUsed(),
                     numbersProblem.getMaxNumbersUsed(),
                     numbersProblem.getLockedNumbers());
         }
@@ -1563,10 +1626,25 @@ function startSolve(numbersProblem) {
         inputElement.value += n.toString();
     }
 
+    let defaultStrategy = chooseStrategy(numbersProblem.getSelection().length, numbersProblem.getTarget() == null, false, false, false);
     switch (numbersProblem.getStrategy()) {
+        case STRATEGY_FAST_CUT:
+            if (defaultStrategy != STRATEGY_FAST_CUT) {
+                inputElement.value += " cut";
+            }
+            break;
+
         case STRATEGY_FAST:
-            if (numbersProblem.getSelection().length <= SELECTION_MAX_FULL) {
-                inputElement.value += " fast";
+            if (defaultStrategy != STRATEGY_FAST) {
+                if (numbersProblem.getSelection().length <= SELECTION_MAX_FULL) {
+                    inputElement.value += " fast";
+                }
+                else {
+                    /* With more than SELECTION_MAX_FULL numbers we usually use
+                     * FAST_CUT but if we're using FAST with that many numbers
+                     * then the user specified "all" */
+                    inputElement.value += " all";
+                }
             }
             break;
     }

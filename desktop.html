@@ -141,9 +141,22 @@ behaviour of the solver.
 </tr>
 <tr>
     <td class="shortcut">fast</td>
-    <td>Use the fast solver (see below) no matter how many numbers are in
-        the selection. By default, the fast solver is only used when the
-        selection contains more than 7 numbers.</td>
+    <td>Use the fast solver (see below) even if there are fewer than 8 numbers
+        in the selection.</td>
+</tr>
+<tr>
+    <td class="shortcut">cut</td>
+    <td>Use the fast solver and only show solutions for the specific target,
+        not other targets. This is the default if there are more than 7 numbers
+        in the selection. This improves speed and memory consumption even
+        more than <span style="font-family: monospace;">fast</span>.
+    </td>
+</tr>
+<tr>
+    <td class="shortcut">all</td>
+    <td>Force the solver to show solutions for all targets even if 8 numbers
+        are given. This still uses the fast solver, so only one solution will
+        be given per possible target.</td>
 </tr>
 <tr>
     <td class="shortcut">@<span style="font-style: italic">target</span></td>
@@ -212,9 +225,16 @@ all the trivial rearrangements of the same solution.
 If you enter eight numbers in the selection, we use the "fast" solver to save
 time and memory. This agressively eliminates duplicate expressions by
 considering two expressions to be equivalent if they reach the same target
-with the same starting numbers. This mode only tells you whether each target is
-possible, and gives one example solution. However, it cannot tell you if this
-is the only solution or what other solutions may exist.
+with the same starting numbers. We also only show the results for the requested
+target rather than all the nearby targets, which further improves speed and
+memory usage.
+</p>
+<p>
+To find solutions for all targets with eight numbers, use the
+<span style="font-family: monospace">all</span> keyword. This will take longer
+and may show significant memory consumption. It still uses the fast solver,
+which gives you a maximum of one solution for each target and cannot tell you
+if this is the only solution or what other solutions may exist.
 </p>
 <h2>Useless operations</h2>
 <p>
