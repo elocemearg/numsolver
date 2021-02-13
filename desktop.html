@@ -10,6 +10,7 @@
     <body onload="initState();">
         <script src="resources/js/solver_engine.js"></script>
         <script src="resources/js/solver_result_patterns.js"></script>
+        <script src="resources/js/solver_cookies.js"></script>
         <script src="resources/js/solver_desktop_interface.js"></script>
 
         <noscript>
@@ -50,7 +51,13 @@
                     </div>
                     <div class="mainbuttoncontainer" id="helpbuttoncontainer">
                         <div id="helpbutton" onclick="openHelp();"
+                            class="roundbutton"
                             alt="Show help" title="Show help">?</div>
+                    </div>
+                    <div class="mainbuttoncontainer" id="prefsbuttoncontainer">
+                        <div id="prefsbutton" onclick="openPreferences();"
+                            class="roundbutton"
+                            alt="Edit preferences" title="Edit preferences">&#x2699;</div>
                     </div>
                 </div>
             </div>
@@ -93,9 +100,54 @@
                 </div>
             </div>
         </div>
+
+        <div id="prefssection">
+            <div class="windowclosebutton" id="prefssclose" onclick="closePreferences();" alt="Close preferences window">&#x274C;</div>
+            <div id="prefsbox" class="centredcontainer windowbox">
+                <div id="prefsinnerbox">
+                    <h1>Preferences</h1>
+                    <h2>Solution format</h2>
+                    <div class="prefnote">
+                        Select how expressions in the main solutions window should be formatted.
+                    </div>
+                    <div>
+                        <input type="radio" name="notation" id="notationa" value="algebraic" checked /><label for="notationa">Algebraic notation
+                        <div class="prefsubnote prefnoteindent">
+                            The entire expression is shown on one line, with brackets if necessary.
+                        </div>
+                        </label>
+                    </div>
+                    <div>
+                        <input type="radio" name="notation" id="notationd" value="descriptive" /><label for="notationd">Descriptive notation
+                        <div class="prefsubnote prefnoteindent">
+                            Each operation within the solution is shown on a separate line.
+                        </div>
+                        </label>
+                    </div>
+                    <h2>Save preferences?</h2>
+                    <div class="prefnote">
+                        If you select "yes", you are consenting to the
+                        above preferences being saved in a browser cookie. You
+                        can withdraw this consent at any time by selecting "no".
+                        Quantum Tombola does not use cookies for any advertising
+                        or tracking purposes.
+                    </div>
+                    <div>
+                        <input type="radio" name="saveprefs" id="saveprefsyes" value="yes" /><label for="saveprefsyes">Yes (uses cookies)</label>
+                    </div>
+                    <div>
+                        <input type="radio" name="saveprefs" id="saveprefsno" value="no" checked /><label for="saveprefsno">No</label>
+                    </div>
+                    <div class="prefsbuttonrow">
+                        <button id="prefsdone" onclick="closePreferences();">Done</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div id="helpsection">
-            <div id="helpclose" onclick="closeHelp();" alt="Close help window">&#x274C;</div>
-            <div id="helpbox" class="centredcontainer">
+            <div class="windowclosebutton" id="helpclose" onclick="closeHelp();" alt="Close help window">&#x274C;</div>
+            <div id="helpbox" class="centredcontainer windowbox">
                 <div id="helpinnerbox">
 <h1>Quantum Tombola</h1>
 <p>

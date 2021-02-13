@@ -9,6 +9,9 @@ const NUMBER = 4;
 const PLUS_MINUS = 10;
 const TIMES_DIVIDE = 11;
 
+const NOTATION_ALGEBRAIC = 0;
+const NOTATION_DESCRIPTIVE = 1;
+
 const operatorSymbols = [ "+", "-", "*", "/", "" ];
 const operatorPrecedence = [ 10, 10, 20, 20, 30 ];
 const operatorTypes = [ PLUS_MINUS, PLUS_MINUS, TIMES_DIVIDE, TIMES_DIVIDE, NUMBER ];
@@ -209,7 +212,11 @@ class BinaryTreeExpression extends Expression {
         return this.leftExp.getCountSpecificNumberUsed(n) + this.rightExp.getCountSpecificNumberUsed(n);
     }
 
-    toString() {
+    toString(notation=NOTATION_ALGEBRAIC) {
+        if (notation == NOTATION_DESCRIPTIVE) {
+            return this.toStringDescriptive();
+        }
+
         var leftStr = this.leftExp.toString();
         var rightStr = this.rightExp.toString();
 
@@ -683,7 +690,11 @@ class OrderedExpression extends Expression {
         return expStr;
     }
 
-    toString() {
+    toString(notation=NOTATION_ALGEBRAIC) {
+        if (notation == NOTATION_DESCRIPTIVE) {
+            return this.toStringDescriptive();
+        }
+
         if (this.stringValue == null) {
             var opStr = this.operatorType == TIMES_DIVIDE ? "*" : "+";
             var bracketSubExps = (this.operatorType == TIMES_DIVIDE);

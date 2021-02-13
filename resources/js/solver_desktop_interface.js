@@ -6,7 +6,7 @@ let defaultTargetMapHeadline = "";
 const targetRackRadius = 10;
 const targetRackMin = 1;
 const targetRackMax = null;
-const useAlgebraicNotation = true;
+let useAlgebraicNotation = true;
 const uriSelSep = "-";
 
 const targetMapStart = 100;
@@ -202,7 +202,7 @@ function solutionToHTML(sol, algebraic=null) {
     }
     return useBetterSymbols(
             HTMLescape(
-                algebraic ? sol.toString():sol.toStringDescriptive()
+                sol.toString(algebraic ? NOTATION_ALGEBRAIC : NOTATION_DESCRIPTIVE)
             ).replace(/\n/g, "<br />")
     );
 }
@@ -865,6 +865,41 @@ function closeHelp() {
 function openHelp() {
     let helpDiv = document.getElementById("helpsection");
     helpDiv.style.display = "block";
+}
+
+function openPreferences() {
+    let preferencesDiv = document.getElementById("prefssection");
+    preferencesDiv.style.display = "block";
+}
+
+function closePreferences() {
+    /* Close the preferences dialogue. */
+    let prefsDiv = document.getElementById("prefssection");
+    prefsDiv.style.display = "none";
+
+    /* Check whether algebraic or descriptive is checked, and set
+     * useAlgebraicNotation accordingly. */
+    let descriptive = document.getElementById("notationd");
+    if (descriptive.checked) {
+        useAlgebraicNotation = false;
+    }
+    else {
+        useAlgebraicNotation = true;
+    }
+
+    let cookieConsent = document.getElementById("saveprefsyes");
+    if (cookieConsent.checked) {
+        /* If the cookie consent radio button is checked, save these preferences
+         * as a cookie now. */
+        setCookie("quantum_tombola_cookies", "yes");
+        setCookie("quantum_tombola_notation", useAlgebraicNotation ? "algebraic" : "descriptive");
+    }
+    else {
+        /* Cookie consent not checked, so remove any cookies we may have
+         * previously set. */
+        deleteCookie("quantum_tombola_cookies");
+        deleteCookie("quantum_tombola_notation");
+    }
 }
 
 function hideWelcome() {
@@ -1675,6 +1710,7 @@ function escapeListener(event) {
      * anywhere outside the help box (the helpsection div) or press Escape. */
     if (event.keyCode === 27) {
         closeHelp();
+        closePreferences();
     }
 }
 
@@ -1689,6 +1725,31 @@ function initState() {
     let inputElement = document.getElementById("solverinput");
     let targetElement = document.getElementById("targetinput");
     inputElement.focus();
+
+    /* If any cookies are set, initialise the user's preferences from them. */
+    let cookies = readCookies();
+    if (getCookieValue(cookies, "quantum_tombola_cookies", "no") == "yes") {
+        let notation = getCookieValue(cookies, "quantum_tombola_notation", "algebraic");
+        if (notation == "descriptive") {
+            useAlgebraicNotation = false;
+        }
+        else {
+            useAlgebraicNotation = true;
+        }
+
+        let cookieConsent = document.getElementById("saveprefsyes");
+        cookieConsent.checked = true;
+    }
+
+    /* Set up the preference controls to reflect the current settings */
+    if (useAlgebraicNotation) {
+        let el = document.getElementById("notationa");
+        el.checked = true;
+    }
+    else {
+        let el = document.getElementById("notationd")
+        el.checked = true;
+    }
 
     /* Set up the target rack */
     let targetRack = document.getElementById("targetrack");
@@ -1825,6 +1886,13 @@ function initState() {
     helpSection.addEventListener("click", function(e) {
         if (e.target.id === "helpsection") {
             closeHelp();
+        }
+    });
+
+    let prefsSection = document.getElementById("prefssection");
+    prefsSection.addEventListener("click", function(e) {
+        if (e.target.id === "prefssection") {
+            closePreferences();
         }
     });
 
