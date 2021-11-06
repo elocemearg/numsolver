@@ -1,9 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
     <head>
-        <title>Quantum Tombola</title>
+        <title>Quantum Tombola - Countdown Numbers Solver</title>
         <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-        <link rel="stylesheet" type="text/css" href="resources/css/solver_desktop.css" />
+        <meta name="description" content="A solver and analysis tool for the Countdown numbers game. No popups, no newsletter, just the tool.">
+        <meta name="author" content="Graeme Cole">
+        <meta name="keywords" content="numbers, countdown, solver">
+        <link rel="stylesheet" type="text/css" href="resources/css/solver_desktop.css?bump=1" />
         <link rel="shortcut icon" type="image/png" href="resources/images/favicon.png" />
         <link href="https://fonts.googleapis.com/css?family=Cabin:400,700%7CRoboto&display=swap" rel="stylesheet">
     </head>
@@ -33,7 +36,7 @@
             <div id="entrysection">
                 <div id="entrycontrolscontainer">
                     <div class="mainbuttoncontainer" id="mapbuttoncontainer">
-                        <button id="targetmapbutton"
+                        <button id="targetmapbutton" class="actionbutton"
                                                      onclick="document.getElementById('targetinput').value = ''; processInput();">Map</button>
                     </div>
                     <div id="entryboxcontainer">
@@ -47,17 +50,17 @@
                             onclick="targetBoxClick();"/>
                     </div>
                     <div class="mainbuttoncontainer" id="solvebuttoncontainer">
-                        <button id="solvebutton" type="submit" onclick="processInput();">Go</button>
-                    </div>
-                    <div class="mainbuttoncontainer" id="helpbuttoncontainer">
-                        <div id="helpbutton" onclick="openHelp();"
-                            class="roundbutton"
-                            alt="Show help" title="Show help">?</div>
+                        <button id="solvebutton" class="actionbutton" type="submit" onclick="processInput();">Go</button>
                     </div>
                     <div class="mainbuttoncontainer" id="prefsbuttoncontainer">
-                        <div id="prefsbutton" onclick="openPreferences();"
+                        <button id="prefsbutton" onclick="openPreferences();"
                             class="roundbutton"
-                            alt="Edit preferences" title="Edit preferences">&#x2699;</div>
+                            title="Edit preferences">&#x2699;</button>
+                    </div>
+                    <div class="mainbuttoncontainer" id="helpbuttoncontainer">
+                        <button id="helpbutton" onclick="openHelp();"
+                            class="roundbutton"
+                            title="Show help">?</button>
                     </div>
                 </div>
             </div>
@@ -71,7 +74,18 @@
                 <div id="targetrack" class="targetrack" style="display: none;"></div>
                 <div id="selectionrack" class="selectionrack"></div>
             </div>
-            <div id="welcomesection">Enter a numbers selection (say, 100 75 50 25 6 3), and press Enter or Go.</div>
+            <div id="welcomesection">
+                <p>
+                    Welcome to Quantum Tombola! This is a solver and analysis
+                    tool for the numbers game from the TV show Countdown.
+                </p>
+                <p>
+                    Enter a numbers selection (say, 100 75 50 25 6 3), and press Enter or Go.
+                </p>
+                <p>
+                    Click the question mark button in the top right for more information.
+                </p>
+            </div>
             <div id="outputsection">
                 <div id="solutionsoutercontainer">
                     <div id="solutionsheadline" class="headline">
@@ -102,7 +116,7 @@
         </div>
 
         <div id="prefssection">
-            <div class="windowclosebutton" id="prefssclose" onclick="closePreferences();" alt="Close preferences window">&#x274C;</div>
+            <div class="windowclosebutton" id="prefssclose" onclick="closePreferences();" title="Close preferences window">&#x2715;</div>
             <div id="prefsbox" class="centredcontainer windowbox">
                 <div id="prefsinnerbox">
                     <h1>Preferences</h1>
@@ -111,18 +125,16 @@
                         Select how expressions in the main solutions window should be formatted.
                     </div>
                     <div>
-                        <input type="radio" name="notation" id="notationa" value="algebraic" checked /><label for="notationa">Algebraic notation
+                        <input type="radio" name="notation" id="notationa" value="algebraic" checked /><label for="notationa">Algebraic notation</label>
                         <div class="prefsubnote prefnoteindent">
-                            The entire expression is shown on one line, with brackets if necessary.
+                            <label for="notationa">The entire expression is shown on one line, with brackets if necessary.</label>
                         </div>
-                        </label>
                     </div>
                     <div>
-                        <input type="radio" name="notation" id="notationd" value="descriptive" /><label for="notationd">Descriptive notation
+                        <input type="radio" name="notation" id="notationd" value="descriptive" /><label for="notationd">Descriptive notation</label>
                         <div class="prefsubnote prefnoteindent">
-                            Each operation within the solution is shown on a separate line.
+                            <label for="notationd">Each operation within the solution is shown on a separate line.</label>
                         </div>
-                        </label>
                     </div>
                     <h2>Save preferences?</h2>
                     <div class="prefnote">
@@ -146,12 +158,13 @@
         </div>
 
         <div id="helpsection">
-            <div class="windowclosebutton" id="helpclose" onclick="closeHelp();" alt="Close help window">&#x274C;</div>
+            <div class="windowclosebutton" id="helpclose" onclick="closeHelp();" title="Close help window">&#x2715;</div>
             <div id="helpbox" class="centredcontainer windowbox">
                 <div id="helpinnerbox">
 <h1>Quantum Tombola</h1>
 <p>
-This solves numbers games according to the rules of the TV show Countdown.
+This tool analyses and solves numbers games according to the rules of the TV
+show Countdown.
 </p>
 <p>
 Enter a selection of numbers separated by spaces, and an optional target, in
@@ -180,7 +193,7 @@ doesn't have all the same features.
 <h1>Shortcuts and special commands</h1>
 <p>
 The following shortcuts may be included in the selection box to modify the
-behaviour of the solver.
+behaviour and to solve for more complicated variants of the game.
 </p>
 <table class="shortcuts">
 <tr>
@@ -299,7 +312,6 @@ target, multiplying or dividing by 1, or any part of an expression being
 equivalent to 2x&nbsp;&minus;&nbsp;x or x²&nbsp;/&nbsp;x.
 </p>
 
-</p>
 <h1>About</h1>
 <p>
 This solver was written by Graeme Cole and is released under a
