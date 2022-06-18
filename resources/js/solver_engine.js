@@ -11,8 +11,11 @@ const TIMES_DIVIDE = 11;
 
 const NOTATION_ALGEBRAIC = 0;
 const NOTATION_DESCRIPTIVE = 1;
+const NOTATION_RPN = 2;
+const NOTATION_PROSE = 3;
 
 const operatorSymbols = [ "+", "-", "*", "/", "" ];
+const operatorProse = [ "the sum of", "the difference between", "the product of", "the quotient of", "" ];
 const operatorPrecedence = [ 10, 10, 20, 20, 30 ];
 const operatorTypes = [ PLUS_MINUS, PLUS_MINUS, TIMES_DIVIDE, TIMES_DIVIDE, NUMBER ];
 
@@ -137,6 +140,21 @@ class Expression {
         }
         return false;
     }
+
+    toString(notation=NOTATION_ALGEBRAIC) {
+        if (notation == NOTATION_DESCRIPTIVE) {
+            return this.toStringDescriptive();
+        }
+        else if (notation == NOTATION_RPN) {
+            return this.toStringRPN();
+        }
+        else if (notation == NOTATION_PROSE) {
+            return this.toStringProse();
+        }
+        else {
+            return this.toStringAlgebraic();
+        }
+    }
 }
 
 /* In fast solve mode, expressions are either BinaryTreeExpressions or
@@ -212,11 +230,7 @@ class BinaryTreeExpression extends Expression {
         return this.leftExp.getCountSpecificNumberUsed(n) + this.rightExp.getCountSpecificNumberUsed(n);
     }
 
-    toString(notation=NOTATION_ALGEBRAIC) {
-        if (notation == NOTATION_DESCRIPTIVE) {
-            return this.toStringDescriptive();
-        }
-
+    toStringAlgebraic() {
         var leftStr = this.leftExp.toString();
         var rightStr = this.rightExp.toString();
 
@@ -247,6 +261,29 @@ class BinaryTreeExpression extends Expression {
         }
         str += this.leftExp.getValue().toString() + " " +
             this.getOperatorString() + " " + this.rightExp.getValue().toString() + " = " + this.getValue().toString();
+        return str;
+    }
+
+    toStringRPN() {
+        let str;
+
+        /* The left subtree's RPN... */
+        str = this.leftExp.toStringRPN();
+
+        /* ... then the right subtree's RPN... */
+        str += " " + this.rightExp.toStringRPN();
+
+        /* ... then the operator. */
+        str += " " + this.getOperatorString();
+
+        return str;
+    }
+
+    toStringProse() {
+        let str;
+        str = operatorProse[this.getOperator()];
+        str += " " + this.leftExp.toStringProse();
+        str += " and " + this.rightExp.toStringProse();
         return str;
     }
 
@@ -305,11 +342,20 @@ class SingleNumber extends Expression {
         return (n == this.value ? 1 : 0);
     }
 
-    toString() {
+    toStringAlgebraic() {
         return this.value.toString();
     }
 
     toStringDescriptive() {
+        return this.toString();
+    }
+
+    toStringRPN() {
+        return this.toString();
+    }
+
+    toStringProse() {
+        /* Currently returns e.g. "8". We might want "eight"? */
         return this.toString();
     }
 
@@ -690,11 +736,7 @@ class OrderedExpression extends Expression {
         return expStr;
     }
 
-    toString(notation=NOTATION_ALGEBRAIC) {
-        if (notation == NOTATION_DESCRIPTIVE) {
-            return this.toStringDescriptive();
-        }
-
+    toStringAlgebraic() {
         if (this.stringValue == null) {
             var opStr = this.operatorType == TIMES_DIVIDE ? "*" : "+";
             var bracketSubExps = (this.operatorType == TIMES_DIVIDE);
@@ -768,8 +810,83 @@ class OrderedExpression extends Expression {
                 ++expCount;
             }
         }
-
         return desc;
+    }
+
+    toStringRPN() {
+        let output = "";
+        let additiveOperator, subtractiveOperator;
+        let expLists = [ this.leftExpressions, this.rightExpressions ];
+        if (this.operatorType == TIMES_DIVIDE) {
+            additiveOperator = "*";
+            subtractiveOperator = "/";
+        }
+        else {
+            additiveOperator = "+";
+            subtractiveOperator = "-";
+        }
+
+        /* Combine all the left expressions with * or +, then combine all the
+         * right expressions with * or +, then if there was at least one right
+         * expression, emit a / or - to divide/subtract the left with the
+         * right. */
+        for (let l = 0; l < 2; ++l) {
+            let expList = expLists[l];
+            for (let i = 0; i < expList.length; ++i) {
+                let exp = expList[i];
+                output += exp.toStringRPN() + " ";
+                if (i > 0) {
+                    output += additiveOperator + " ";
+                }
+            }
+        }
+        if (expLists[1].length > 0) {
+            output += subtractiveOperator;
+        }
+        return output.trim();
+    }
+
+    toStringProse() {
+        let output = "";
+        let additiveOperator, subtractiveOperator;
+        let expLists = [ this.leftExpressions, this.rightExpressions ];
+        if (this.operatorType == TIMES_DIVIDE) {
+            additiveOperator = operatorProse[TIMES];
+            subtractiveOperator = operatorProse[DIVIDE];
+        }
+        else {
+            additiveOperator = operatorProse[PLUS];
+            subtractiveOperator = operatorProse[MINUS];
+        }
+
+        let sides = [ "", "" ];
+        for (let l = 0; l < 2; ++l) {
+            let expList = expLists[l];
+            /* Work from the end backwards, so we do the less complicated
+             * expressions first. "the product of 5 and the sum of 6 and 7" is
+             * clearer than "the product of the sum of 6 and 7 and 5". */
+            for (let i = expList.length - 1; i >= 0; --i) {
+                if (i < expList.length - 1) {
+                    if (i == 0) {
+                        sides[l] += " and ";
+                    }
+                    else {
+                        sides[l] += ", ";
+                    }
+                }
+                sides[l] += expList[i].toStringProse();
+            }
+            if (expList.length > 1) {
+                sides[l] = additiveOperator + " " + sides[l];
+            }
+        }
+        if (sides[1].length > 0) {
+            output = subtractiveOperator + " " + sides[0] + " and " + sides[1];
+        }
+        else {
+            output = sides[0];
+        }
+        return output;
     }
 
     getSelectionMaskList() {

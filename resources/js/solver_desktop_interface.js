@@ -2,11 +2,13 @@ let solverIsRunning = false;
 let currentProblem = null;
 let currentResults = null;
 let defaultTargetMapHeadline = "";
+let solutionNotation = NOTATION_ALGEBRAIC;
 
 const targetRackRadius = 10;
 const targetRackMin = 1;
 const targetRackMax = null;
-let useAlgebraicNotation = true;
+const notationStrings = [ "algebraic", "descriptive", "rpn", "prose" ];
+const notationControls = [ "notationa", "notationd", "notationrpn", "notationprose" ];
 const uriSelSep = "-";
 
 const targetMapStart = 100;
@@ -196,14 +198,21 @@ function useBetterSymbols(str) {
     return str.replace(/\*/g, "&times;").replace(/-/g, "&minus;");
 }
 
-function solutionToHTML(sol, algebraic=null) {
-    if (algebraic === null) {
-        algebraic = useAlgebraicNotation;
+function decorateProse(str) {
+    return str.charAt(0).toUpperCase() + str.substr(1) + ".";
+}
+
+function solutionToHTML(sol, notation=null) {
+    let solString;
+    if (notation === null) {
+        notation = solutionNotation;
+    }
+    solString = sol.toString(notation);
+    if (notation == NOTATION_PROSE) {
+        solString = decorateProse(solString);
     }
     return useBetterSymbols(
-            HTMLescape(
-                sol.toString(algebraic ? NOTATION_ALGEBRAIC : NOTATION_DESCRIPTIVE)
-            ).replace(/\n/g, "<br />")
+            HTMLescape(solString).replace(/\n/g, "<br />")
     );
 }
 
@@ -230,7 +239,7 @@ function clearResults() {
     targetMapHeadlineSolution.style.display = "none";
 }
 
-function buildSolutionDiv(solution, target, showEquals=false, algebraic=null) {
+function buildSolutionDiv(solution, target, showEquals=false, notation=null) {
     let div = document.createElement("div");
     div.classList.add("categorysolution");
     if (solution.getValue() == target) {
@@ -240,13 +249,18 @@ function buildSolutionDiv(solution, target, showEquals=false, algebraic=null) {
         div.classList.add("categorysolutioninexact");
     }
 
-    if (algebraic === null) {
-        algebraic = useAlgebraicNotation;
+    if (notation === null) {
+        notation = solutionNotation;
     }
 
-    let html = solutionToHTML(solution, algebraic);
-    if (showEquals && algebraic) {
-        html += " = " + solution.getValue().toString();
+    let html = solutionToHTML(solution, notation);
+    if (showEquals) {
+        if (notation == NOTATION_ALGEBRAIC || notation == NOTATION_RPN) {
+            html += " = " + solution.getValue().toString();
+        }
+        else if (notation == NOTATION_PROSE) {
+            html += " equals " + solution.getValue().toString();
+        }
     }
     div.innerHTML = html;
     return div;
@@ -736,7 +750,7 @@ function setTargetMapHeadline(hoveredTarget, displayResults) {
             }
             headlineDivText.innerHTML = html;
 
-            let solDiv = buildSolutionDiv(sols[0], hoveredTarget, false, true);
+            let solDiv = buildSolutionDiv(sols[0], hoveredTarget, false, NOTATION_ALGEBRAIC);
             solDiv.classList.add("inheadlinesolution");
             discardContents(headlineDivSolution);
             headlineDivSolution.appendChild(solDiv);
@@ -878,13 +892,14 @@ function closePreferences() {
     prefsDiv.style.display = "none";
 
     /* Check whether algebraic or descriptive is checked, and set
-     * useAlgebraicNotation accordingly. */
-    let descriptive = document.getElementById("notationd");
-    if (descriptive.checked) {
-        useAlgebraicNotation = false;
-    }
-    else {
-        useAlgebraicNotation = true;
+     * solutionNotation accordingly. */
+    solutionNotation = NOTATION_ALGEBRAIC;
+    for (let n = 0; n < notationControls.length; ++n) {
+        let control = document.getElementById(notationControls[n]);
+        if (control.checked) {
+            solutionNotation = n;
+            break;
+        }
     }
 
     let cookieConsent = document.getElementById("saveprefsyes");
@@ -892,7 +907,7 @@ function closePreferences() {
         /* If the cookie consent radio button is checked, save these preferences
          * as a cookie now. */
         setCookie("quantum_tombola_cookies", "yes");
-        setCookie("quantum_tombola_notation", useAlgebraicNotation ? "algebraic" : "descriptive");
+        setCookie("quantum_tombola_notation", notationStrings[solutionNotation]);
     }
     else {
         /* Cookie consent not checked, so remove any cookies we may have
@@ -1730,25 +1745,21 @@ function initState() {
     let cookies = readCookies();
     if (getCookieValue(cookies, "quantum_tombola_cookies", "no") == "yes") {
         let notation = getCookieValue(cookies, "quantum_tombola_notation", "algebraic");
-        if (notation == "descriptive") {
-            useAlgebraicNotation = false;
+        solutionNotation = NOTATION_ALGEBRAIC;
+        for (let i = 0; i < notationStrings.length; ++i) {
+            if (notation == notationStrings[i]) {
+                solutionNotation = i;
+                break;
+            }
         }
-        else {
-            useAlgebraicNotation = true;
-        }
-
         let cookieConsent = document.getElementById("saveprefsyes");
         cookieConsent.checked = true;
     }
 
     /* Set up the preference controls to reflect the current settings */
-    if (useAlgebraicNotation) {
-        let el = document.getElementById("notationa");
-        el.checked = true;
-    }
-    else {
-        let el = document.getElementById("notationd")
-        el.checked = true;
+    let control = document.getElementById(notationControls[solutionNotation]);
+    if (control) {
+        control.checked = true;
     }
 
     /* Set up the target rack */

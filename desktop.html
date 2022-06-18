@@ -6,15 +6,15 @@
         <meta name="description" content="A solver and analysis tool for the Countdown numbers game. No popups, no newsletter, just the tool.">
         <meta name="author" content="Graeme Cole">
         <meta name="keywords" content="numbers, countdown, solver">
-        <link rel="stylesheet" type="text/css" href="resources/css/solver_desktop.css?bump=1" />
+        <link rel="stylesheet" type="text/css" href="resources/css/solver_desktop.css?bump=2" />
         <link rel="shortcut icon" type="image/png" href="resources/images/favicon.png" />
         <link href="https://fonts.googleapis.com/css?family=Cabin:400,700%7CRoboto&display=swap" rel="stylesheet">
     </head>
     <body onload="initState();">
-        <script src="resources/js/solver_engine.js"></script>
+        <script src="resources/js/solver_engine.js?bump=1"></script>
         <script src="resources/js/solver_result_patterns.js"></script>
         <script src="resources/js/solver_cookies.js"></script>
-        <script src="resources/js/solver_desktop_interface.js"></script>
+        <script src="resources/js/solver_desktop_interface.js?bump=1"></script>
 
         <noscript>
             You don't have JavaScript enabled. This isn't going to go well for you.
@@ -125,15 +125,48 @@
                         Select how expressions in the main solutions window should be formatted.
                     </div>
                     <div>
-                        <input type="radio" name="notation" id="notationa" value="algebraic" checked /><label for="notationa">Algebraic notation</label>
+                        <label for="notationa">
+                            <input type="radio" name="notation" id="notationa" value="algebraic" checked />
+                            Algebraic notation
+                        </label>
                         <div class="prefsubnote prefnoteindent">
-                            <label for="notationa">The entire expression is shown on one line, with brackets if necessary.</label>
+                            <label for="notationa">
+                                The entire expression is shown on one line, with brackets if necessary.
+                            </label>
                         </div>
                     </div>
                     <div>
-                        <input type="radio" name="notation" id="notationd" value="descriptive" /><label for="notationd">Descriptive notation</label>
+                        <label for="notationd">
+                            <input type="radio" name="notation" id="notationd" value="descriptive" />
+                            Descriptive notation
+                        </label>
                         <div class="prefsubnote prefnoteindent">
-                            <label for="notationd">Each operation within the solution is shown on a separate line.</label>
+                            <label for="notationd">
+                                Each operation within the solution is shown on a separate line.
+                            </label>
+                        </div>
+                    </div>
+                    <div>
+                        <label for="notationrpn">
+                            <input type="radio" name="notation" id="notationrpn" value="rpn" />
+                            Reverse Polish notation
+                        </label>
+                        <div class="prefsubnote prefnoteindent">
+                            <label for="notationrpn">
+                                What if we wrote arithmetic operators
+                                <a href="https://en.wikipedia.org/wiki/Reverse_Polish_notation" target="_blank">to the right of the numbers they operate on</a>
+                                instead of in between them?
+                                Then we'd never need any brackets or precedence rules.
+                            </label>
+                        </div>
+                        <label for="notationprose">
+                            <input type="radio" name="notation" id="notationprose" value="prose" />
+                            Prose
+                        </label>
+                        <div class="prefsubnote prefnoteindent">
+                            <label for="notationprose">
+                                The entire expression as one sentence with no symbols. Turns out there's a reason we have symbols.
+                            </label>
                         </div>
                     </div>
                     <h2>Save preferences?</h2>
