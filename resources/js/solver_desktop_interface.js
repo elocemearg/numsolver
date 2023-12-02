@@ -11,10 +11,13 @@ const notationStrings = [ "algebraic", "descriptive", "rpn", "prose" ];
 const notationControls = [ "notationa", "notationd", "notationrpn", "notationprose" ];
 const uriSelSep = "-";
 
+/* First and last target of the big rectangular map. */
 const targetMapStart = 100;
-const targetMapHide = 100;
 const targetMapEnd = 999;
 const targetMapRowLength = 25;
+
+/* Set to 100 if you don't think that should be a valid target. */
+const targetMapHide = null;
 
 
 class NumbersProblem {
@@ -107,7 +110,7 @@ class NumbersProblem {
             return null;
         }
     }
-    
+
     getTargetRackMax() {
         if (this.isAllSolutions() || this.target == null || this.isAllTargets()) {
             return targetRackMax;
@@ -420,7 +423,7 @@ function makeNumbersProblemFromInput(input, targetInputValue) {
 
     let np = new NumbersProblem(selection, target);
     let strategy = chooseStrategy(selection.length, target == null, cutSpecified, fastSpecified, allSpecified);
-    
+
     np.setStrategy(strategy);
 
     if (minNumbersUsed != null)
@@ -831,7 +834,8 @@ function updateAndDisplayTargetMap(problem, totalToExpressions) {
     }
 
     if (totalToExpressions != null) {
-        defaultTargetMapHeadline = possibleTargets.toString() + " of 899 targets are possible with this selection.";
+        const numTargets = targetMapEnd - targetMapStart + (targetMapHide == null ? 1 : 0);
+        defaultTargetMapHeadline = possibleTargets.toString() + " of " + numTargets.toString() + " targets are possible with this selection.";
     }
     setTargetMapHeadline(null, totalToExpressions != null);
 
@@ -1889,9 +1893,13 @@ function initState() {
      * solve for a specific target is visible. */
     disableMapButton();
 
-    /* The "100" of the target map isn't a valid target, so make it invisible */
-    let hundred = document.getElementById("targetmap100");
-    hundred.style.visibility = "hidden";
+    if (targetMapHide != null) {
+        /* Make the target corresponding to targetMapHide invisible */
+        let t = document.getElementById("targetmap" + targetMapHide.toString());
+        if (t) {
+            t.style.visibility = "hidden";
+        }
+    }
 
     let helpSection = document.getElementById("helpsection");
     helpSection.addEventListener("click", function(e) {
