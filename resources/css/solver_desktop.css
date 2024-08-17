@@ -3,6 +3,10 @@ body {
     background-color: #c2d1ec;
 }
 
+a {
+    text-decoration: none;
+}
+
 #mainsection {
     position: relative;
 }

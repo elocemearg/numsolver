@@ -3,6 +3,10 @@ body {
     background-color: #aebbcf;
 }
 
+a {
+    text-decoration: none;
+}
+
 #mainpane {
     position: absolute;
     left: 0;
