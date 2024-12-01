@@ -597,15 +597,15 @@ div.categorysolution {
 }
 
 div.categorysolutionexact {
-    background-color: #88ff88;
+    background-color: hsl(120deg, 100%, 90%);
     border-radius: 5px;
-    border: 5px solid #88ff88;
+    border: 5px solid hsl(120deg, 100%, 90%);
 }
 
 div.categorysolutioninexact {
-    background-color: #ffff88;
+    background-color: hsl(60deg, 100%, 90%);
     border-radius: 5px;
-    border: 5px solid #ffff88;
+    border: 5px solid hsl(60deg, 100%, 90%);
 }
 
 div.headlineleft {
