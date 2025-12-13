@@ -6,7 +6,7 @@
         <meta name="description" content="A solver and analysis tool for the Countdown numbers game. No popups, no newsletter, just the tool.">
         <meta name="author" content="Graeme Cole">
         <meta name="keywords" content="numbers, countdown, solver">
-        <link rel="stylesheet" type="text/css" href="resources/css/solver_desktop.css?bump=3" />
+        <link rel="stylesheet" type="text/css" href="resources/css/solver_desktop.css?bump=4" />
         <link rel="shortcut icon" type="image/png" href="resources/images/favicon.png" />
         <link href="https://fonts.googleapis.com/css?family=Cabin:400,700%7CRoboto&display=swap" rel="stylesheet">
     </head>
@@ -14,7 +14,7 @@
         <script src="resources/js/solver_engine.js?bump=1"></script>
         <script src="resources/js/solver_result_patterns.js"></script>
         <script src="resources/js/solver_cookies.js"></script>
-        <script src="resources/js/solver_desktop_interface.js?bump=2"></script>
+        <script src="resources/js/solver_desktop_interface.js?bump=3"></script>
 
         <noscript>
             You don't have JavaScript enabled. This isn't going to go well for you.
@@ -101,14 +101,18 @@
                         <div id="targetmapheadlinelink" class="headlineright headlinelink"></div>
                     </div>
                     <div id="targetmaptablecontainer">
-                        <div id="targetmaptable"></div>
+                        <table id="targetmaptable"></table>
                         <div id="targetmapkey" class="targetmapkey" style="display: none;">
                             <div class="targetmapkeyheading">Colour of each target indicates number of solutions as follows</div>
-                            <div id="targetmapkeyscale" class="targetmapkeyscale targetmaprow"></div>
+                            <table class="targetmapkeyscale">
+                                <tr id="targetmapkeyscale" class="targetmapkeyscale targetmaprow"></tr>
+                            </table>
                         </div>
                         <div id="targetmapkeyfast" class="targetmapkey" style="display: none;">
                             <div class="targetmapkeyheading">Key</div>
-                            <div id="targetmapkeyfastscale" class="targetmapkeyscale targetmaprow"></div>
+                            <table class="targetmapkeyscale">
+                                <tr id="targetmapkeyfastscale" class="targetmapkeyscale targetmaprow"></tr>
+                            </table>
                         </div>
                     </div>
                 </div>
@@ -116,7 +120,7 @@
         </div>
 
         <div id="prefssection">
-            <div class="windowclosebutton" id="prefssclose" onclick="closePreferences();" title="Close preferences window">&#x2715;</div>
+            <div class="windowclosebutton" id="prefsclose" onclick="closePreferences();" title="Close preferences window">&#x2715;</div>
             <div id="prefsbox" class="centredcontainer windowbox">
                 <div id="prefsinnerbox">
                     <h1>Preferences</h1>

@@ -468,7 +468,7 @@ div.selectionfooter {
 #outputsection {
     clear: both;
     width: 100%;
-    max-width: 1000px;
+    max-width: max(1200px, 95vmin);
     margin-left: auto;
     margin-right: auto;
     text-align: center;
@@ -512,7 +512,7 @@ span.headlinesolcount {
 
 div.fullsolutions {
     clear: both;
-    max-width: 1190px;
+    max-width: max(1190px, 94vmin);
     margin-left: auto;
     margin-right: auto;
     padding: 5px;
@@ -622,7 +622,7 @@ div.headlineright {
 }
 
 div.headlinelink {
-    font-size: 8pt;
+    font-size: 10pt;
     font-family: "Roboto", sans-serif;
     margin-right: 8px;
     height: 20pt;
@@ -653,30 +653,30 @@ div.inheadlinesolution {
     padding-top: 3px;
     padding-bottom: 6px;
     background-color: #ddeeff;
+    /* width: min(max(800px, 50vw), 1200px); */
 }
 
 #targetmaptable {
     position: relative;
-    display: inline-block;
+    width: 100%;
 }
 
-div.targetmaprow {
-    text-align: left;
+tr.targetmaprow {
     margin-left: 5px;
     margin-right: 5px;
+    height: 1.6vh;
 }
 
-div.targetmapcell {
-    display: inline-block;
-    width: 25px;
-    height: 15px;
+td.targetmapcell {
     margin-right: 2px;
-    font-size: 7pt;
+    font-size: max(8pt, 1vmin);
+    line-height: max(8pt, 1vmin);
+    width: max(30px, 2vw);
     border: 1px solid gray;
     border-radius: 2px;
-    line-height: 15px;
     text-align: center;
     cursor: pointer;
+    overflow: visible;
 }
 
 div.targetmapkey {
@@ -690,26 +690,21 @@ div.targetmapkeyheading {
     text-align: left;
     margin-top: 10px;
     margin-left: 5px;
-    font-size: 9pt;
+    font-size: 10pt;
     color: #444444;
     font-family: "Cabin", sans-serif;
 }
 
-div.targetmapkeyscale {
-    position: relative;
-    text-align: left;
-}
-
-div.targetmapkeycell {
+td.targetmapkeycell {
     cursor: default;
     font-family: "Cabin", sans-serif;
     width: 30px;
     height: 20px;
-    font-size: 9pt;
+    font-size: max(8pt, 1vmin);
     line-height: 20px;
 }
 
-div.targetmapfastkeycell {
+td.targetmapfastkeycell {
     width: 60px;
 }
 

@@ -1826,22 +1826,22 @@ function initState() {
     let targetMapTable = document.getElementById("targetmaptable");
     let mappedTarget = targetMapStart;
     for (let rowStart = targetMapStart; rowStart <= targetMapEnd; rowStart += targetMapRowLength) {
-        let rowDiv = document.createElement("div");
-        rowDiv.className = "targetmaprow";
+        let row = document.createElement("tr");
+        row.className = "targetmaprow";
         for (let mappedTarget = rowStart;
                 mappedTarget < rowStart + targetMapRowLength &&
                     mappedTarget <= targetMapEnd;
                 ++mappedTarget) {
-            let cell = document.createElement("div");
+            let cell = document.createElement("td");
             cell.className = "targetmapcell";
             cell.id = "targetmap" + mappedTarget.toString();
             cell.innerText = mappedTarget.toString();
             cell.setAttribute("onclick", "targetMapClick(" + mappedTarget.toString() + ");");
             cell.setAttribute("onmouseover", "setTargetMapHeadline(" + mappedTarget.toString() + ", true);");
             cell.setAttribute("onmouseout", "setTargetMapHeadline(null, true);");
-            rowDiv.appendChild(cell);
+            row.appendChild(cell);
         }
-        targetMapTable.appendChild(rowDiv);
+        targetMapTable.appendChild(row);
     }
 
     /* Fill in the colour key for the target map */
@@ -1849,7 +1849,7 @@ function initState() {
     let scalePoints = [0, 1, 2, 3, 4, 5, 10, 15, 20, 30, 40, 50, 60, 70, 80, 90, 100];
     for (let i = 0; i < scalePoints.length; ++i) {
         let n = scalePoints[i];
-        let keyCell = document.createElement("div");
+        let keyCell = document.createElement("td");
         let fgbg;
 
         keyCell.classList.add("targetmapcell");
@@ -1872,7 +1872,7 @@ function initState() {
     let fastScalePoints = [0, 1];
     let fastScaleLegends = [ "Impossible", "Possible" ];
     for (let i = 0; i < fastScalePoints.length; ++i) {
-        let keyCell = document.createElement("div");
+        let keyCell = document.createElement("td");
         keyCell.classList.add("targetmapcell");
         keyCell.classList.add("targetmapkeycell");
         keyCell.classList.add("targetmapfastkeycell");
