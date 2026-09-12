@@ -631,6 +631,13 @@ function toLessShowboatySummaryString(numExp, denExp) {
     let smallestDiff = null;
     let bestString = numValue.toString() + " / " + denValue.toString();
 
+    /* If the numerator's operator isn't a multiplication, then it doesn't make
+     * sense to try to break the left expression down into factors, because we
+     * didn't reach it by multiplying any factors. */
+    if (numExp.getOperator() != TIMES) {
+        return bestString;
+    }
+
     for (let bitmask = 1; bitmask < (1 << numList.length); ++bitmask) {
         let candidateNumerator = 1;
         for (let i = 0; i < numList.length; ++i) {
