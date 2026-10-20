@@ -976,12 +976,20 @@ function selectionBoxClick() {
     }
 }
 
+function getMapStartQueryStringFragment() {
+    if (targetMapStart != defaultTargetMapStart) {
+        return "&mapstart=" + targetMapStart.toString();
+    }
+    else {
+        return "";
+    }
+}
 
 function createPageLinkElement(problem) {
     let a = document.createElement("a");
     a.href = document.location.protocol + "//" +
             document.location.host + document.location.pathname +
-            problem.toQueryString();
+            problem.toQueryString() + getMapStartQueryStringFragment();
     a.innerText = "link to this page";
     return a;
 }
@@ -994,12 +1002,7 @@ function setCurrentPageLink(problem) {
 
     /* If the target map isn't pointed to the default, include that in the
      * query string as well as the current numbers problem. */
-    let mapQueryFragment = "";
-    if (targetMapStart != defaultTargetMapStart) {
-        mapQueryFragment = "&mapstart=" + targetMapStart.toString();
-    }
-
-    window.history.replaceState(null, null, problem.toQueryString() + mapQueryFragment);
+    window.history.replaceState(null, null, problem.toQueryString() + getMapStartQueryStringFragment());
 }
 
 function targetBoxClick() {
