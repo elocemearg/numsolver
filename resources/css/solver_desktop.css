@@ -639,10 +639,33 @@ div.inheadlinesolution {
 
 #targetmapcontainer {
     position: relative;
+    margin-left: 50px;
+    margin-right: 50px;
 }
 
 #targetmapheadline {
     font-size: 14pt;
+}
+
+button.targetmapnav {
+    position: absolute;
+    font-size: 25px;
+    top: 0%;
+    width: 40px;
+    height: 40px;
+}
+
+#targetmapback {
+    left: -50px;
+}
+
+#targetmapreset {
+    left: -50px;
+    top: 50px !important;
+}
+
+#targetmapforward {
+    right: -50px;
 }
 
 #targetmaptablecontainer {

@@ -6,7 +6,7 @@
         <meta name="description" content="A solver and analysis tool for the Countdown numbers game. No popups, no newsletter, just the tool.">
         <meta name="author" content="Graeme Cole">
         <meta name="keywords" content="numbers, countdown, solver">
-        <link rel="stylesheet" type="text/css" href="resources/css/solver_desktop.css?bump=4" />
+        <link rel="stylesheet" type="text/css" href="resources/css/solver_desktop.css?bump=5" />
         <link rel="shortcut icon" type="image/png" href="resources/images/favicon.png" />
         <link href="https://fonts.googleapis.com/css?family=Cabin:400,700%7CRoboto&display=swap" rel="stylesheet">
     </head>
@@ -14,7 +14,7 @@
         <script src="resources/js/solver_engine.js?bump=1"></script>
         <script src="resources/js/solver_result_patterns.js?bump=1"></script>
         <script src="resources/js/solver_cookies.js"></script>
-        <script src="resources/js/solver_desktop_interface.js?bump=3"></script>
+        <script src="resources/js/solver_desktop_interface.js?bump=4"></script>
 
         <noscript>
             You don't have JavaScript enabled. This isn't going to go well for you.
@@ -101,6 +101,9 @@
                         <div id="targetmapheadlinelink" class="headlineright headlinelink"></div>
                     </div>
                     <div id="targetmaptablecontainer">
+                        <button id="targetmapback" class="targetmapnav" title="See lower targets">&#x2B05;</button>
+                        <button id="targetmapreset" class="targetmapnav" title="Reset target map position to default">&#x21E4;</button>
+                        <button id="targetmapforward" class="targetmapnav" title="See higher targets">&#x27A1;</button>
                         <table id="targetmaptable"></table>
                         <div id="targetmapkey" class="targetmapkey" style="display: none;">
                             <div class="targetmapkeyheading">Colour of each target indicates number of solutions as follows</div>

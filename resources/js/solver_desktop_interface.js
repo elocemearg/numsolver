@@ -4,6 +4,11 @@ let currentResults = null;
 let defaultTargetMapHeadline = "";
 let solutionNotation = NOTATION_ALGEBRAIC;
 
+/* Map navigation buttons, initialised by initState() */
+let targetMapBackButton = null;
+let targetMapResetButton = null;
+let targetMapForwardButton = null;
+
 const targetRackRadius = 10;
 const targetRackMin = 1;
 const targetRackMax = null;
@@ -12,12 +17,11 @@ const notationControls = [ "notationa", "notationd", "notationrpn", "notationpro
 const uriSelSep = "-";
 
 /* First and last target of the big rectangular map. */
-const targetMapStart = 100;
-const targetMapEnd = 999;
+const defaultTargetMapStart = 100;
+const defaultTargetMapEnd = 999;
+let targetMapStart = defaultTargetMapStart;
+let targetMapEnd = defaultTargetMapEnd;
 const targetMapRowLength = 25;
-
-/* Set to 100 if you don't think that should be a valid target. */
-const targetMapHide = null;
 
 
 class NumbersProblem {
@@ -502,6 +506,34 @@ function queryStringToDict(queryString) {
     return dict;
 }
 
+function initialiseTargetMapBoundsFromQueryString(queryString) {
+    if (queryString == null || queryString.length == 0) {
+        return null;
+    }
+
+    let dict = queryStringToDict(queryString);
+    if ("mapstart" in dict) {
+        let n = parseInt(dict["mapstart"]);
+        if (!isNaN(n) && n >= 0) {
+            /* map start must be 100 or a multiple of 1000 */
+            targetMapStart = n;
+            if (targetMapStart != 100 && targetMapStart % 1000 != 0) {
+                targetMapStart -= targetMapStart % 1000;
+            }
+            /* Set target map end according to target map start */
+            if (targetMapStart == 0) {
+                targetMapEnd = 99;
+            }
+            else if (targetMapStart == 100) {
+                targetMapEnd = 999;
+            }
+            else {
+                targetMapEnd = targetMapStart + 999;
+            }
+        }
+    }
+}
+
 function makeNumbersProblemFromQueryString(queryString) {
     if (queryString == null || queryString.length == 0) {
         return null;
@@ -813,9 +845,7 @@ function updateAndDisplayTargetMap(problem, totalToExpressions) {
 
         if (totalToExpressions != null && target in totalToExpressions && totalToExpressions[target].length > 0) {
             solutionCount = totalToExpressions[target].length;
-            if (target != targetMapHide) {
-                possibleTargets++;
-            }
+            possibleTargets++;
         }
         else {
             solutionCount = 0;
@@ -834,8 +864,8 @@ function updateAndDisplayTargetMap(problem, totalToExpressions) {
     }
 
     if (totalToExpressions != null) {
-        const numTargets = targetMapEnd - targetMapStart + (targetMapHide == null ? 1 : 0);
-        defaultTargetMapHeadline = possibleTargets.toString() + " of " + numTargets.toString() + " targets are possible with this selection.";
+        const numTargets = targetMapEnd - targetMapStart + (targetMapStart <= 0 && targetMapEnd >= 0 ? 0 : 1);
+        defaultTargetMapHeadline = `${possibleTargets} of the ${numTargets} targets from ${targetMapStart == 0 ? 1 : targetMapStart} to ${targetMapEnd} are possible with this selection.`;
     }
     setTargetMapHeadline(null, totalToExpressions != null);
 
@@ -962,7 +992,14 @@ function setCurrentPageLink(problem) {
     headlineLinkDiv.appendChild(createPageLinkElement(problem));
     headlineLinkDiv.style.display = "inline-block";
 
-    window.history.replaceState(null, null, problem.toQueryString());
+    /* If the target map isn't pointed to the default, include that in the
+     * query string as well as the current numbers problem. */
+    let mapQueryFragment = "";
+    if (targetMapStart != defaultTargetMapStart) {
+        mapQueryFragment = "&mapstart=" + targetMapStart.toString();
+    }
+
+    window.history.replaceState(null, null, problem.toQueryString() + mapQueryFragment);
 }
 
 function targetBoxClick() {
@@ -1740,6 +1777,164 @@ function inputEditListener(event) {
     }
 }
 
+/* Target map cell button handlers */
+function targetMapClick(target) {
+    if (currentProblem) {
+        let newProblem = new NumbersProblem(currentProblem.getSelection(), target);
+        newProblem.setStrategy(currentProblem.getStrategy());
+        newProblem.setMinNumbersUsed(currentProblem.getMinNumbersUsed());
+        newProblem.setMaxNumbersUsed(currentProblem.getMaxNumbersUsed());
+        newProblem.setLockedNumbers(currentProblem.getLockedNumbers());
+        startSolve(newProblem);
+    }
+}
+
+function targetMapClickHandler(e) {
+    let element = e.target;
+    while (element != null && !element.hasAttribute("data-target")) {
+        element = element.parentElement;
+    }
+    if (!element) {
+        return;
+    }
+    let n = parseInt(element.getAttribute("data-target"));
+    if (!isNaN(n)) {
+        targetMapClick(n);
+    }
+}
+
+function targetMapMouseOverHandler(e) {
+    let element = e.target;
+    while (element != null && !element.hasAttribute("data-target")) {
+        element = element.parentElement;
+    }
+    if (!element) {
+        return;
+    }
+    let n = parseInt(element.getAttribute("data-target"));
+    if (!isNaN(n)) {
+        setTargetMapHeadline(n, true);
+    }
+}
+
+function targetMapMouseOutHandler(e) {
+    setTargetMapHeadline(null, true);
+}
+
+/* Empty the target map table and refill it with target cells according to
+ * the global variables targetMapStart and targetMapEnd. */
+function recreateTargetMap() {
+    let targetMapTable = document.getElementById("targetmaptable");
+    while (targetMapTable.firstChild) {
+        targetMapTable.removeChild(targetMapTable.firstChild);
+    }
+    let mappedTarget = targetMapStart;
+    for (let rowStart = targetMapStart; rowStart <= targetMapEnd; rowStart += targetMapRowLength) {
+        let row = document.createElement("tr");
+        row.className = "targetmaprow";
+        for (let mappedTarget = rowStart;
+                mappedTarget < rowStart + targetMapRowLength &&
+                    mappedTarget <= targetMapEnd;
+                ++mappedTarget) {
+            let cell = document.createElement("td");
+            cell.className = "targetmapcell";
+            cell.id = "targetmap" + mappedTarget.toString();
+            cell.innerText = mappedTarget.toString();
+            cell.setAttribute("data-target", mappedTarget.toString());
+            if (mappedTarget == 0) {
+                cell.style.visibility = "hidden";
+            }
+            else {
+                cell.addEventListener("click", targetMapClickHandler);
+                cell.addEventListener("mouseover", targetMapMouseOverHandler);
+                cell.addEventListener("mouseout", targetMapMouseOutHandler);
+            }
+            row.appendChild(cell);
+        }
+        targetMapTable.appendChild(row);
+    }
+}
+
+/* Next target map page. Valid values for targetMapStart are 0, 100, 1000, then
+ * every multiple of 1000 after that. */
+function targetMapForward() {
+    if (!currentResults || !currentResults.isSuccessful() || !currentProblem) {
+        return;
+    }
+    if (targetMapStart < 100) {
+        /* 0-99 -> 100-999 */
+        targetMapStart = 100;
+        targetMapEnd = 999;
+    }
+    else if (targetMapStart < 1000) {
+        /* 100-999 -> 1000-1999 */
+        targetMapStart = 1000;
+        targetMapEnd = 1999;
+    }
+    else {
+        /* Anything else, just add 1000 to start and end, making sure
+         * targetMapStart is always a multiple of 1000. */
+        if (targetMapStart % 1000 != 0) {
+            targetMapStart -= targetMapStart % 1000;
+        }
+        targetMapStart += 1000;
+        targetMapEnd += 1000;
+    }
+    targetMapBackButton.disabled = false;
+    targetMapResetButton.disabled = (targetMapStart == defaultTargetMapStart);
+    recreateTargetMap();
+    outputPuzzleSolutions(currentResults, currentProblem);
+}
+
+/* Previous target map page. */
+function targetMapBack() {
+    if (!currentResults || !currentResults.isSuccessful() || !currentProblem) {
+        return;
+    }
+    if (targetMapStart == 0) {
+        /* Can't go back from the first page */
+        return;
+    }
+    if (targetMapStart <= 100) {
+        /* 100-999 -> 0-99 */
+        targetMapStart = 0;
+        targetMapEnd = 99;
+    }
+    else if (targetMapStart <= 1000) {
+        /* 1000-1999 -> 100-999 */
+        targetMapStart = 100;
+        targetMapEnd = 999;
+    }
+    else if (targetMapStart % 1000 != 0) {
+        /* Shouldn't happen, but make targetMapStart a multiple of 1000 */
+        targetMapStart -= targetMapStart % 1000;
+        targetMapEnd = targetMapStart + 999;
+    }
+    else {
+        /* If we're on any other page, subtract 1000 from start and end */
+        targetMapStart -= 1000;
+        targetMapEnd -= 1000;
+    }
+    targetMapBackButton.disabled = (targetMapStart == 0);
+    targetMapResetButton.disabled = (targetMapStart == defaultTargetMapStart);
+    recreateTargetMap();
+    outputPuzzleSolutions(currentResults, currentProblem);
+}
+
+/* Return target map page to the default. */
+function targetMapReset() {
+    if (!currentResults || !currentResults.isSuccessful() || !currentProblem) {
+        return;
+    }
+    targetMapStart = defaultTargetMapStart;
+    targetMapEnd = defaultTargetMapEnd;
+    targetMapBackButton.disabled = false;
+    targetMapResetButton.disabled = true;
+    recreateTargetMap();
+    outputPuzzleSolutions(currentResults, currentProblem);
+}
+
+/* initState(): first function called when page is loaded. */
 function initState() {
     let inputElement = document.getElementById("solverinput");
     let targetElement = document.getElementById("targetinput");
@@ -1823,25 +2018,22 @@ function initState() {
     }
 
     /* Set up the big target map */
-    let targetMapTable = document.getElementById("targetmaptable");
-    let mappedTarget = targetMapStart;
-    for (let rowStart = targetMapStart; rowStart <= targetMapEnd; rowStart += targetMapRowLength) {
-        let row = document.createElement("tr");
-        row.className = "targetmaprow";
-        for (let mappedTarget = rowStart;
-                mappedTarget < rowStart + targetMapRowLength &&
-                    mappedTarget <= targetMapEnd;
-                ++mappedTarget) {
-            let cell = document.createElement("td");
-            cell.className = "targetmapcell";
-            cell.id = "targetmap" + mappedTarget.toString();
-            cell.innerText = mappedTarget.toString();
-            cell.setAttribute("onclick", "targetMapClick(" + mappedTarget.toString() + ");");
-            cell.setAttribute("onmouseover", "setTargetMapHeadline(" + mappedTarget.toString() + ", true);");
-            cell.setAttribute("onmouseout", "setTargetMapHeadline(null, true);");
-            row.appendChild(cell);
-        }
-        targetMapTable.appendChild(row);
+    initialiseTargetMapBoundsFromQueryString(document.location.search);
+    recreateTargetMap(targetMapStart, targetMapEnd);
+
+    /* Initialise the map navigation buttons */
+    targetMapBackButton = document.getElementById("targetmapback");
+    if (targetMapBackButton) {
+        targetMapBackButton.addEventListener("click", targetMapBack);
+    }
+    targetMapResetButton = document.getElementById("targetmapreset");
+    if (targetMapResetButton) {
+        targetMapResetButton.addEventListener("click", targetMapReset);
+        targetMapResetButton.disabled = (targetMapStart == defaultTargetMapStart);
+    }
+    targetMapForwardButton = document.getElementById("targetmapforward");
+    if (targetMapForwardButton) {
+        targetMapForwardButton.addEventListener("click", targetMapForward);
     }
 
     /* Fill in the colour key for the target map */
@@ -1893,14 +2085,6 @@ function initState() {
      * solve for a specific target is visible. */
     disableMapButton();
 
-    if (targetMapHide != null) {
-        /* Make the target corresponding to targetMapHide invisible */
-        let t = document.getElementById("targetmap" + targetMapHide.toString());
-        if (t) {
-            t.style.visibility = "hidden";
-        }
-    }
-
     let helpSection = document.getElementById("helpsection");
     helpSection.addEventListener("click", function(e) {
         if (e.target.id === "helpsection") {
@@ -1940,17 +2124,6 @@ function nearbyTargetClick(away) {
     if (currentProblem) {
         let newProblem = new NumbersProblem(currentProblem.getSelection(),
                 currentProblem.getTarget() + away);
-        newProblem.setStrategy(currentProblem.getStrategy());
-        newProblem.setMinNumbersUsed(currentProblem.getMinNumbersUsed());
-        newProblem.setMaxNumbersUsed(currentProblem.getMaxNumbersUsed());
-        newProblem.setLockedNumbers(currentProblem.getLockedNumbers());
-        startSolve(newProblem);
-    }
-}
-
-function targetMapClick(target) {
-    if (currentProblem) {
-        let newProblem = new NumbersProblem(currentProblem.getSelection(), target);
         newProblem.setStrategy(currentProblem.getStrategy());
         newProblem.setMinNumbersUsed(currentProblem.getMinNumbersUsed());
         newProblem.setMaxNumbersUsed(currentProblem.getMaxNumbersUsed());
