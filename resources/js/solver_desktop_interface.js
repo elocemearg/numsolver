@@ -4,25 +4,12 @@ let currentResults = null;
 let defaultTargetMapHeadline = "";
 let solutionNotation = NOTATION_ALGEBRAIC;
 
-/* Map navigation buttons, initialised by initState() */
-let targetMapBackButton = null;
-let targetMapResetButton = null;
-let targetMapForwardButton = null;
-
 const targetRackRadius = 10;
 const targetRackMin = 1;
 const targetRackMax = null;
 const notationStrings = [ "algebraic", "descriptive", "rpn", "prose" ];
 const notationControls = [ "notationa", "notationd", "notationrpn", "notationprose" ];
 const uriSelSep = "-";
-
-/* First and last target of the big rectangular map. */
-const defaultTargetMapStart = 100;
-const defaultTargetMapEnd = 999;
-let targetMapStart = defaultTargetMapStart;
-let targetMapEnd = defaultTargetMapEnd;
-const targetMapRowLength = 25;
-
 
 class NumbersProblem {
     constructor(selection, target, errorMessage=null) {
@@ -197,14 +184,78 @@ function selectionsEqual(s1o, s2o) {
     return true;
 }
 
-function HTMLescape(str) {
-    return str.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+
+/* Target map cell button handlers */
+function targetMapClick(target) {
+    if (currentProblem) {
+        let newProblem = new NumbersProblem(currentProblem.getSelection(), target);
+        newProblem.setStrategy(currentProblem.getStrategy());
+        newProblem.setMinNumbersUsed(currentProblem.getMinNumbersUsed());
+        newProblem.setMaxNumbersUsed(currentProblem.getMaxNumbersUsed());
+        newProblem.setLockedNumbers(currentProblem.getLockedNumbers());
+        startSolve(newProblem);
+    }
 }
 
-function useBetterSymbols(str) {
-    return str.replace(/\*/g, "&times;").replace(/-/g, "&minus;");
+function targetMapClickHandler(e) {
+    let element = e.target;
+    while (element != null && !element.hasAttribute("data-target")) {
+        element = element.parentElement;
+    }
+    if (!element) {
+        return;
+    }
+    let n = parseInt(element.getAttribute("data-target"));
+    if (!isNaN(n)) {
+        targetMapClick(n);
+    }
 }
 
+function targetMapMouseOverHandler(e) {
+    let element = e.target;
+    while (element != null && !element.hasAttribute("data-target")) {
+        element = element.parentElement;
+    }
+    if (!element) {
+        return;
+    }
+    let n = parseInt(element.getAttribute("data-target"));
+    if (!isNaN(n)) {
+        targetMap.setHeadline(n, currentProblem, currentResults, true);
+    }
+}
+
+function targetMapMouseOutHandler(e) {
+    targetMap.setHeadline(null, currentProblem, currentResults, true);
+}
+
+function nearbyTargetClick(e) {
+    let element = e.target;
+    while (element != null && !element.hasAttribute("data-away")) {
+        element = element.parentElement;
+    }
+    if (element == null) {
+        return;
+    }
+    away = parseInt(element.getAttribute("data-away"));
+    if (isNaN(away)) {
+        return;
+    }
+    let newTarget = currentProblem.getTarget() + away;
+    if (newTarget < 0) {
+        return;
+    }
+    if (currentProblem) {
+        let newProblem = new NumbersProblem(currentProblem.getSelection(), newTarget);
+        newProblem.setStrategy(currentProblem.getStrategy());
+        newProblem.setMinNumbersUsed(currentProblem.getMinNumbersUsed());
+        newProblem.setMaxNumbersUsed(currentProblem.getMaxNumbersUsed());
+        newProblem.setLockedNumbers(currentProblem.getLockedNumbers());
+        startSolve(newProblem);
+    }
+}
+
+/* Result formatting */
 function decorateProse(str) {
     return str.charAt(0).toUpperCase() + str.substr(1) + ".";
 }
@@ -221,12 +272,6 @@ function solutionToHTML(sol, notation=null) {
     return useBetterSymbols(
             HTMLescape(solString).replace(/\n/g, "<br />")
     );
-}
-
-function discardContents(element) {
-    while (element.firstChild) {
-        element.removeChild(element.firstChild);
-    }
 }
 
 function clearResults() {
@@ -282,7 +327,6 @@ function getActiveHeadlineLinkDiv() {
 }
 
 function makeNumbersProblemFromInput(input, targetInputValue) {
-    /* Split the input up by whitespace */
     let selection = [];
     let target = null;
     let nextIsTarget = false;
@@ -293,6 +337,7 @@ function makeNumbersProblemFromInput(input, targetInputValue) {
     let fastSpecified = false;
     let allSpecified = false;
 
+    /* Split the input up by whitespace */
     input = input.replace(/^\s+|\s+$/g, "");
     input = input.toLowerCase();
 
@@ -474,38 +519,6 @@ function chooseStrategy(selectionLength, targetIsNull, cut, fast, all) {
     return strategy;
 }
 
-function queryStringToDict(queryString) {
-    let dict = {};
-    if (queryString == null || queryString.length == 0) {
-        return dict;
-    }
-
-    if (queryString[0] == '?') {
-        queryString = queryString.substring(1);
-    }
-
-    let components = queryString.split("&");
-    for (let i = 0; i < components.length; ++i) {
-        let nameEqualsValue = components[i];
-        let equalsPos = nameEqualsValue.search("=");
-
-        if (equalsPos >= 0) {
-            name = nameEqualsValue.substring(0, equalsPos);
-            value = nameEqualsValue.substring(equalsPos + 1);
-        }
-        else {
-            name = nameEqualsValue;
-            value = "";
-        }
-
-        name = decodeURIComponent(name.replace(/\+/g, " "));
-        value = decodeURIComponent(value.replace(/\+/g, " "));
-        dict[name] = value;
-    }
-
-    return dict;
-}
-
 function initialiseTargetMapBoundsFromQueryString(queryString) {
     if (queryString == null || queryString.length == 0) {
         return null;
@@ -515,21 +528,7 @@ function initialiseTargetMapBoundsFromQueryString(queryString) {
     if ("mapstart" in dict) {
         let n = parseInt(dict["mapstart"]);
         if (!isNaN(n) && n >= 0) {
-            /* map start must be 100 or a multiple of 1000 */
-            targetMapStart = n;
-            if (targetMapStart != 100 && targetMapStart % 1000 != 0) {
-                targetMapStart -= targetMapStart % 1000;
-            }
-            /* Set target map end according to target map start */
-            if (targetMapStart == 0) {
-                targetMapEnd = 99;
-            }
-            else if (targetMapStart == 100) {
-                targetMapEnd = 999;
-            }
-            else {
-                targetMapEnd = targetMapStart + 999;
-            }
+            targetMap.setStart(n);
         }
     }
 }
@@ -751,148 +750,8 @@ function buildAndDisplayNearestSolutions(fullSolutionsDiv, problem, distinctTota
     }
 }
 
-function setTargetMapHeadline(hoveredTarget, displayResults) {
-    let headlineDivText = document.getElementById("targetmapheadlinetext");
-    let headlineDivSolution = document.getElementById("targetmapheadlinesolution");
-    let headlineDivLink = document.getElementById("targetmapheadlinelink");
-    if (hoveredTarget == null) {
-        /* Cursor isn't hovering over a target, so display the default
-         * headline rather than a solution for that target. */
-        if (displayResults && defaultTargetMapHeadline != null) {
-            headlineDivText.innerText = defaultTargetMapHeadline;
-            headlineDivSolution.style.display = "none";
-            headlineDivLink.style.display = "inline-block";
-        }
-    }
-    else if (currentResults != null && !solverIsRunning) {
-        /* Cursor is hovering over a target, and the solver has finished
-         * solving. Set the headline to the number of solutions for this
-         * target, and show one example. */
-        let imperfectMap = currentResults.getImperfectSolutions();
-        let allSols = currentProblem.isAllSolutions();
-        if (hoveredTarget in imperfectMap && imperfectMap[hoveredTarget].length > 0) {
-            let sols = imperfectMap[hoveredTarget];
-            let html = hoveredTarget.toString();
-
-            if (!allSols) {
-                html += " is possible with this selection.";
-            }
-            else if (sols.length == 1) {
-                html += " has only one solution with this selection.";
-            }
-            else {
-                html += " has " + sols.length.toString() + " solutions with this selection.";
-            }
-            headlineDivText.innerHTML = html;
-
-            let solDiv = buildSolutionDiv(sols[0], hoveredTarget, false, NOTATION_ALGEBRAIC);
-            solDiv.classList.add("inheadlinesolution");
-            discardContents(headlineDivSolution);
-            headlineDivSolution.appendChild(solDiv);
-        }
-        else {
-            headlineDivText.innerText = hoveredTarget.toString() + " is not possible with this selection.";
-            discardContents(headlineDivSolution);
-        }
-
-        headlineDivSolution.style.display = "inline-block";
-        headlineDivLink.style.display = "none";
-    }
-}
-
-function showTargetMapKey(showFullKey, showFastKey) {
-    let slowKey = document.getElementById("targetmapkey");
-    let fastKey = document.getElementById("targetmapkeyfast");
-    slowKey.style.display = (showFullKey ? "block" : "none");
-    fastKey.style.display = (showFastKey ? "block" : "none");
-}
-
-function targetToAltText(target, solutionCount, haveAllSolutions) {
-    let altText = target.toString();
-    if (solutionCount !== null) {
-        if (target == 404 && solutionCount !== null && solutionCount == 0) {
-            altText += ": not found";
-        }
-        else if (haveAllSolutions) {
-            altText += ": ";
-            if (solutionCount == 0) {
-                altText += "no solutions";
-            }
-            else {
-                altText += solutionCount.toString() + " solution" + (solutionCount == 1 ? "" : "s");
-            }
-        }
-        else {
-            if (solutionCount > 0) {
-                altText += ": possible";
-            }
-            else {
-                altText += ": impossible";
-            }
-        }
-    }
-    return altText;
-}
-
-function updateAndDisplayTargetMap(problem, totalToExpressions) {
-    let possibleTargets = 0;
-    for (let target = targetMapStart; target <= targetMapEnd; ++target) {
-        let solutionCount;
-        let cell = document.getElementById("targetmap" + target.toString());
-
-        if (cell == null)
-            continue;
-
-        if (totalToExpressions != null && target in totalToExpressions && totalToExpressions[target].length > 0) {
-            solutionCount = totalToExpressions[target].length;
-            possibleTargets++;
-        }
-        else {
-            solutionCount = 0;
-        }
-
-        let fgbg = solutionCountToFGBG(solutionCount, false);
-        cell.style.color = fgbg[0];
-        cell.style.backgroundColor = fgbg[1];
-
-        if (problem == null || totalToExpressions == null)
-            solutionCount = null;
-
-        let altText = targetToAltText(target, solutionCount, problem == null ? false : problem.isAllSolutions());
-        cell.setAttribute("alt", altText);
-        cell.setAttribute("title", altText);
-    }
-
-    if (totalToExpressions != null) {
-        const numTargets = targetMapEnd - targetMapStart + (targetMapStart <= 0 && targetMapEnd >= 0 ? 0 : 1);
-        defaultTargetMapHeadline = `${possibleTargets} of the ${numTargets} targets from ${targetMapStart == 0 ? 1 : targetMapStart} to ${targetMapEnd} are possible with this selection.`;
-    }
-    setTargetMapHeadline(null, totalToExpressions != null);
-
-    let targetMapDiv = document.getElementById("targetmapcontainer");
-    targetMapDiv.style.display = null;
-
-    let solutionsOuterDiv = document.getElementById("solutionsoutercontainer");
-    solutionsOuterDiv.style.display = "none";
-
-    if (problem == null) {
-        showTargetMapKey(false, false);
-    }
-    else {
-        showTargetMapKey(problem.isAllSolutions(), !problem.isAllSolutions());
-    }
-}
-
-function hideTargetMap() {
-    let targetMapDiv = document.getElementById("targetmapcontainer");
-    targetMapDiv.style.display = "none";
-
-    let solutionsOuterDiv = document.getElementById("solutionsoutercontainer");
-    solutionsOuterDiv.style.display = null;
-}
-
 function showEmptyTargetMap() {
-    updateAndDisplayTargetMap(null, null);
+    targetMap.updateAndDisplayTargetMap(null, null);
 }
 
 function enableMapButton() {
@@ -976,20 +835,11 @@ function selectionBoxClick() {
     }
 }
 
-function getMapStartQueryStringFragment() {
-    if (targetMapStart != defaultTargetMapStart) {
-        return "&mapstart=" + targetMapStart.toString();
-    }
-    else {
-        return "";
-    }
-}
-
 function createPageLinkElement(problem) {
     let a = document.createElement("a");
     a.href = document.location.protocol + "//" +
             document.location.host + document.location.pathname +
-            problem.toQueryString() + getMapStartQueryStringFragment();
+            problem.toQueryString() + targetMap.getQueryStringFragment();
     a.innerText = "link to this page";
     return a;
 }
@@ -1002,93 +852,13 @@ function setCurrentPageLink(problem) {
 
     /* If the target map isn't pointed to the default, include that in the
      * query string as well as the current numbers problem. */
-    window.history.replaceState(null, null, problem.toQueryString() + getMapStartQueryStringFragment());
+    window.history.replaceState(null, null, problem.toQueryString() + targetMap.getQueryStringFragment());
 }
 
 function targetBoxClick() {
     let targetBox = document.getElementById("targetinput");
     if (document.activeElement !== targetBox) {
         targetBox.select();
-    }
-}
-
-
-let hsv_sextant_starts = [ 0, 1, 2, 2, 1, 0 ];
-let hsv_sextant_deltas = [ 1, -1, 1, -1, 1, -1 ];
-function hsv_to_rgb(hue, saturation, value) {
-    /* hue: 0-360
-     * saturation: 0.0-1.0
-     * value: 0.0-1.0
-     *
-     * Uses algorithm shamelessly nicked from Wikipedia.
-     */
-    let chroma = value * saturation;
-    let sextant = Math.floor(hue / 60) % 6;
-    let x = chroma * (1 - Math.abs((hue / 60) % 2 - 1));
-
-    let a = [ chroma, x, 0 ];
-    let rgb = [0, 0, 0];
-
-    let index = hsv_sextant_starts[sextant];
-    let delta = hsv_sextant_deltas[sextant];
-    for (let i = 0; i < 3; ++i) {
-        rgb[i] = a[index];
-        index = (index + 3 + delta) % 3;
-    }
-
-    let m = value - chroma;
-    for (let i = 0; i < 3; ++i) {
-        rgb[i] += m;
-        rgb[i] = Math.floor(rgb[i] * 256);
-        if (rgb[i] == 256)
-            rgb[i] = 255;
-    }
-
-    return rgb;
-}
-
-function rgb_to_string(rgb) {
-    let rgb_str = "#";
-    for (let i = 0; i < 3; ++i) {
-        if (rgb[i] < 16)
-            rgb_str += "0";
-        rgb_str += rgb[i].toString(16);
-    }
-    return rgb_str;
-}
-
-
-/* Background colour of a cell depends on the number of solutions.
- * 0 solutions: grey on lighter grey.
- * 1 solution: white background, black text (or grey if !saturate).
- * 2 or more solutions: hue component of background HSV colour is
- *     given by: min(sqrt(numsols - 2), 10) * 270 / 10. Lower counts of
- *     solutions are towards 0 degrees (red), higher counts of solutions are
- *     towards 270 degrees (blue-purple).
- *     Text is black, or grey if !saturate.
- */
-
-/* Constants to work out approximate "brightness" of an RGB colour, taken from
- * https://www.w3.org/TR/AERT/#color-contrast */
-const brightnessCoeffs = [0.299, 0.587, 0.114]
-function solutionCountToFGBG(solutionCount, saturate) {
-    let darkText = (saturate ? "#000000" : "#333333");
-    let lightText = (saturate ? "#ffffff" : "#cccccc");
-    if (solutionCount == 0) {
-        return [ "#888888", "#dddddd" ];
-    }
-    else if (solutionCount == 1) {
-        return [ darkText, "#ffffff" ];
-    }
-    else {
-        let hue = Math.min(Math.sqrt(solutionCount - 2), 10) * 27.0;
-        let rgb = hsv_to_rgb(hue, saturate ? 0.4 : 0.2, 1);
-        let roughBrightness = 0;
-        for (let i = 0; i < 3; ++i) {
-            roughBrightness += brightnessCoeffs[i] * rgb[i] / 255.0;
-        }
-        return [ (roughBrightness > 0.5 ? darkText : lightText),
-                  rgb_to_string(rgb) ];
     }
 }
 
@@ -1314,7 +1084,8 @@ function setTargetRackSolutionCounts(problem, solutions) {
             targetCell.style.cursor = null;
         }
         else {
-            targetCell.setAttribute("onclick", "nearbyTargetClick(" + (away).toString() + ");");
+            targetCell.setAttribute("data-away", away.toString());
+            targetCell.addEventListener("click", nearbyTargetClick);
             targetCell.style.cursor = "pointer";
         }
     }
@@ -1590,7 +1361,7 @@ function outputPuzzleSolutions(results, problem) {
         enableMapButton();
     }
     else {
-        updateAndDisplayTargetMap(problem, totalToExpressions);
+        targetMap.updateAndDisplayTargetMap(problem, totalToExpressions);
         disableMapButton();
     }
 }
@@ -1607,7 +1378,7 @@ function desktopSolvePuzzleFinishedCallback(results) {
         resultsHeadline.innerText = "";
         outputError(results.getErrorMessage() == null ?
                 "null null nullity null" : results.getErrorMessage());
-        hideTargetMap();
+        targetMap.hide();
     }
 }
 
@@ -1634,11 +1405,11 @@ function startSolve(numbersProblem) {
     /* If we've clicked a target in the target map, we don't want any queued
      * onmouseout event to fiddle with the headline once we've displayed the
      * solutions for a specific target */
-    defaultTargetMapHeadline = null;
+    targetMap.setDefaultHeadline(null);
 
     if (numbersProblem.getTarget() != null) {
         setDisplayWithTarget();
-        hideTargetMap();
+        targetMap.hide();
     }
     else {
         setDisplayNoTarget();
@@ -1780,160 +1551,27 @@ function inputEditListener(event) {
     }
 }
 
-/* Target map cell button handlers */
-function targetMapClick(target) {
-    if (currentProblem) {
-        let newProblem = new NumbersProblem(currentProblem.getSelection(), target);
-        newProblem.setStrategy(currentProblem.getStrategy());
-        newProblem.setMinNumbersUsed(currentProblem.getMinNumbersUsed());
-        newProblem.setMaxNumbersUsed(currentProblem.getMaxNumbersUsed());
-        newProblem.setLockedNumbers(currentProblem.getLockedNumbers());
-        startSolve(newProblem);
-    }
-}
-
-function targetMapClickHandler(e) {
-    let element = e.target;
-    while (element != null && !element.hasAttribute("data-target")) {
-        element = element.parentElement;
-    }
-    if (!element) {
-        return;
-    }
-    let n = parseInt(element.getAttribute("data-target"));
-    if (!isNaN(n)) {
-        targetMapClick(n);
-    }
-}
-
-function targetMapMouseOverHandler(e) {
-    let element = e.target;
-    while (element != null && !element.hasAttribute("data-target")) {
-        element = element.parentElement;
-    }
-    if (!element) {
-        return;
-    }
-    let n = parseInt(element.getAttribute("data-target"));
-    if (!isNaN(n)) {
-        setTargetMapHeadline(n, true);
-    }
-}
-
-function targetMapMouseOutHandler(e) {
-    setTargetMapHeadline(null, true);
-}
-
-/* Empty the target map table and refill it with target cells according to
- * the global variables targetMapStart and targetMapEnd. */
-function recreateTargetMap() {
-    let targetMapTable = document.getElementById("targetmaptable");
-    while (targetMapTable.firstChild) {
-        targetMapTable.removeChild(targetMapTable.firstChild);
-    }
-    let mappedTarget = targetMapStart;
-    for (let rowStart = targetMapStart; rowStart <= targetMapEnd; rowStart += targetMapRowLength) {
-        let row = document.createElement("tr");
-        row.className = "targetmaprow";
-        for (let mappedTarget = rowStart;
-                mappedTarget < rowStart + targetMapRowLength &&
-                    mappedTarget <= targetMapEnd;
-                ++mappedTarget) {
-            let cell = document.createElement("td");
-            cell.className = "targetmapcell";
-            cell.id = "targetmap" + mappedTarget.toString();
-            cell.innerText = mappedTarget.toString();
-            cell.setAttribute("data-target", mappedTarget.toString());
-            if (mappedTarget == 0) {
-                cell.style.visibility = "hidden";
-            }
-            else {
-                cell.addEventListener("click", targetMapClickHandler);
-                cell.addEventListener("mouseover", targetMapMouseOverHandler);
-                cell.addEventListener("mouseout", targetMapMouseOutHandler);
-            }
-            row.appendChild(cell);
-        }
-        targetMapTable.appendChild(row);
-    }
-}
-
-/* Next target map page. Valid values for targetMapStart are 0, 100, 1000, then
- * every multiple of 1000 after that. */
-function targetMapForward() {
+function mapBackHandler() {
     if (!currentResults || !currentResults.isSuccessful() || !currentProblem) {
         return;
     }
-    if (targetMapStart < 100) {
-        /* 0-99 -> 100-999 */
-        targetMapStart = 100;
-        targetMapEnd = 999;
-    }
-    else if (targetMapStart < 1000) {
-        /* 100-999 -> 1000-1999 */
-        targetMapStart = 1000;
-        targetMapEnd = 1999;
-    }
-    else {
-        /* Anything else, just add 1000 to start and end, making sure
-         * targetMapStart is always a multiple of 1000. */
-        if (targetMapStart % 1000 != 0) {
-            targetMapStart -= targetMapStart % 1000;
-        }
-        targetMapStart += 1000;
-        targetMapEnd += 1000;
-    }
-    targetMapBackButton.disabled = false;
-    targetMapResetButton.disabled = (targetMapStart == defaultTargetMapStart);
-    recreateTargetMap();
+    targetMap.pagePrev();
     outputPuzzleSolutions(currentResults, currentProblem);
 }
 
-/* Previous target map page. */
-function targetMapBack() {
+function mapForwardHandler() {
     if (!currentResults || !currentResults.isSuccessful() || !currentProblem) {
         return;
     }
-    if (targetMapStart == 0) {
-        /* Can't go back from the first page */
-        return;
-    }
-    if (targetMapStart <= 100) {
-        /* 100-999 -> 0-99 */
-        targetMapStart = 0;
-        targetMapEnd = 99;
-    }
-    else if (targetMapStart <= 1000) {
-        /* 1000-1999 -> 100-999 */
-        targetMapStart = 100;
-        targetMapEnd = 999;
-    }
-    else if (targetMapStart % 1000 != 0) {
-        /* Shouldn't happen, but make targetMapStart a multiple of 1000 */
-        targetMapStart -= targetMapStart % 1000;
-        targetMapEnd = targetMapStart + 999;
-    }
-    else {
-        /* If we're on any other page, subtract 1000 from start and end */
-        targetMapStart -= 1000;
-        targetMapEnd -= 1000;
-    }
-    targetMapBackButton.disabled = (targetMapStart == 0);
-    targetMapResetButton.disabled = (targetMapStart == defaultTargetMapStart);
-    recreateTargetMap();
+    targetMap.pageNext();
     outputPuzzleSolutions(currentResults, currentProblem);
 }
 
-/* Return target map page to the default. */
-function targetMapReset() {
+function mapHomeHandler() {
     if (!currentResults || !currentResults.isSuccessful() || !currentProblem) {
         return;
     }
-    targetMapStart = defaultTargetMapStart;
-    targetMapEnd = defaultTargetMapEnd;
-    targetMapBackButton.disabled = false;
-    targetMapResetButton.disabled = true;
-    recreateTargetMap();
+    targetMap.pageHome();
     outputPuzzleSolutions(currentResults, currentProblem);
 }
 
@@ -2021,23 +1659,28 @@ function initState() {
     }
 
     /* Set up the big target map */
-    initialiseTargetMapBoundsFromQueryString(document.location.search);
-    recreateTargetMap(targetMapStart, targetMapEnd);
+    let targetMapResetButton = document.getElementById("targetmapreset");
+    let targetMapBackButton = document.getElementById("targetmapback");
+    let targetMapForwardButton = document.getElementById("targetmapforward");
+    targetMap = new TargetMap(
+        document.getElementById("targetmaptable"),
+        document.getElementById("targetmapcontainer"),
+        document.getElementById("solutionsoutercontainer"),
+        document.getElementById("targetmapkey"),
+        document.getElementById("targetmapkeyfast"),
+        targetMapBackButton, targetMapResetButton, targetMapForwardButton,
+        targetMapClickHandler, targetMapMouseOverHandler, targetMapMouseOutHandler,
+        buildSolutionDiv
+    );
 
-    /* Initialise the map navigation buttons */
-    targetMapBackButton = document.getElementById("targetmapback");
-    if (targetMapBackButton) {
-        targetMapBackButton.addEventListener("click", targetMapBack);
-    }
-    targetMapResetButton = document.getElementById("targetmapreset");
-    if (targetMapResetButton) {
-        targetMapResetButton.addEventListener("click", targetMapReset);
-        targetMapResetButton.disabled = (targetMapStart == defaultTargetMapStart);
-    }
-    targetMapForwardButton = document.getElementById("targetmapforward");
-    if (targetMapForwardButton) {
-        targetMapForwardButton.addEventListener("click", targetMapForward);
-    }
+    /* Initialise the map navigation button handlers */
+    targetMapResetButton.disabled = true;
+    targetMapBackButton.addEventListener("click", mapBackHandler);
+    targetMapResetButton.addEventListener("click", mapHomeHandler);
+    targetMapForwardButton.addEventListener("click", mapForwardHandler);
+
+    initialiseTargetMapBoundsFromQueryString(document.location.search);
+    targetMap.recreate();
 
     /* Fill in the colour key for the target map */
     let targetMapKey = document.getElementById("targetmapkeyscale");
@@ -2123,14 +1766,3 @@ function processInput() {
     }
 }
 
-function nearbyTargetClick(away) {
-    if (currentProblem) {
-        let newProblem = new NumbersProblem(currentProblem.getSelection(),
-                currentProblem.getTarget() + away);
-        newProblem.setStrategy(currentProblem.getStrategy());
-        newProblem.setMinNumbersUsed(currentProblem.getMinNumbersUsed());
-        newProblem.setMaxNumbersUsed(currentProblem.getMaxNumbersUsed());
-        newProblem.setLockedNumbers(currentProblem.getLockedNumbers());
-        startSolve(newProblem);
-    }
-}
