@@ -1,7 +1,20 @@
+/* True if the solver engine is currently working on a problem and we expect
+ * the progress and finished callbacks to be called. */
 let solverIsRunning = false;
+
+/* The current NumbersProblem we're working on or showing the solutions for */
 let currentProblem = null;
+
+/* The results from the solved currentProblem */
 let currentResults = null;
+
+/* The currently configured notation in which we display solutions */
 let solutionNotation = NOTATION_ALGEBRAIC;
+
+/* TargetMap object (see solver_desktop_interface_target_map.js) which
+ * represents the big grid of targets we display when the user enters a
+ * numbers selection but no specific target. Initialised by initState(). */
+let targetMap = null;
 
 const targetRackRadius = 10;
 const targetRackMin = 1;
