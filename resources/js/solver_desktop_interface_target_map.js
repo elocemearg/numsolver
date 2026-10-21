@@ -1,7 +1,7 @@
 /* First and last target of the big rectangular map. */
-const defaultTargetMapStart = 100;
-const defaultTargetMapEnd = 999;
-const defaultTargetMapRowLength = 25;
+const DEFAULT_TARGET_MAP_START = 100;
+const DEFAULT_TARGET_MAP_END = 999;
+const DEFAULT_TARGET_MAP_ROW_LENGTH = 25;
 
 /* Return a string to put in the mouseover text when the user hovers over a
  * target in the target map. */
@@ -76,11 +76,11 @@ class TargetMap {
             targetMapMouseOverHandler, targetMapMouseOutHandler,
             buildSolutionDivFunction) {
         /* targetMapStart, targetMapEnd: current bounds of the target map */
-        this.targetMapStart = defaultTargetMapStart;
-        this.targetMapEnd = defaultTargetMapEnd;
+        this.targetMapStart = DEFAULT_TARGET_MAP_START;
+        this.targetMapEnd = DEFAULT_TARGET_MAP_END;
 
         /* Number of target cells per row */
-        this.targetMapRowLength = defaultTargetMapRowLength;
+        this.targetMapRowLength = DEFAULT_TARGET_MAP_ROW_LENGTH;
 
         /* Important HTML elements related to the target map */
         this.targetMapTable = tableElement;
@@ -146,7 +146,7 @@ class TargetMap {
             this.targetMapEnd -= 1000;
         }
         this.targetMapBackButton.disabled = (this.targetMapStart == 0);
-        this.targetMapResetButton.disabled = (this.targetMapStart == defaultTargetMapStart);
+        this.targetMapResetButton.disabled = (this.targetMapStart == DEFAULT_TARGET_MAP_START);
         this.recreate();
     }
 
@@ -173,14 +173,14 @@ class TargetMap {
             this.targetMapEnd += 1000;
         }
         this.targetMapBackButton.disabled = false;
-        this.targetMapResetButton.disabled = (this.targetMapStart == defaultTargetMapStart);
+        this.targetMapResetButton.disabled = (this.targetMapStart == DEFAULT_TARGET_MAP_START);
         this.recreate();
     }
 
     /* Return to the default target map page, 100-999. */
     pageHome() {
-        this.targetMapStart = defaultTargetMapStart;
-        this.targetMapEnd = defaultTargetMapEnd;
+        this.targetMapStart = DEFAULT_TARGET_MAP_START;
+        this.targetMapEnd = DEFAULT_TARGET_MAP_END;
         this.targetMapBackButton.disabled = false;
         this.targetMapResetButton.disabled = true;
         this.recreate();
@@ -208,6 +208,7 @@ class TargetMap {
         else {
             this.targetMapEnd = this.targetMapStart + 999;
         }
+        this.targetMapResetButton.disabled = (this.targetMapStart == DEFAULT_TARGET_MAP_START);
     }
 
     /* Empty the target map table and refill it with target cells according
@@ -298,7 +299,7 @@ class TargetMap {
      * targetMapStart, suitable for including as part of the URL query string.
      */
     getQueryStringFragment() {
-        if (this.targetMapStart != defaultTargetMapStart) {
+        if (this.targetMapStart != DEFAULT_TARGET_MAP_START) {
             return "&mapstart=" + this.targetMapStart.toString();
         }
         else {
