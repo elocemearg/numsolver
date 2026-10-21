@@ -2,6 +2,7 @@
 const DEFAULT_TARGET_MAP_START = 100;
 const DEFAULT_TARGET_MAP_END = 999;
 const DEFAULT_TARGET_MAP_ROW_LENGTH = 25;
+const TARGET_MAP_START_MAX = 999999000;
 
 /* Return a string to put in the mouseover text when the user hovers over a
  * target in the target map. */
@@ -145,6 +146,7 @@ class TargetMap {
             this.targetMapStart -= 1000;
             this.targetMapEnd -= 1000;
         }
+        this.targetMapForwardButton.disabled = false;
         this.targetMapBackButton.disabled = (this.targetMapStart == 0);
         this.targetMapResetButton.disabled = (this.targetMapStart == DEFAULT_TARGET_MAP_START);
         this.recreate();
@@ -174,6 +176,7 @@ class TargetMap {
         }
         this.targetMapBackButton.disabled = false;
         this.targetMapResetButton.disabled = (this.targetMapStart == DEFAULT_TARGET_MAP_START);
+        this.targetMapForwardButton.disabled = (this.targetMapStart >= TARGET_MAP_START_MAX);
         this.recreate();
     }
 
@@ -182,20 +185,25 @@ class TargetMap {
         this.targetMapStart = DEFAULT_TARGET_MAP_START;
         this.targetMapEnd = DEFAULT_TARGET_MAP_END;
         this.targetMapBackButton.disabled = false;
+        this.targetMapForwardButton.disabled = false;
         this.targetMapResetButton.disabled = true;
         this.recreate();
     }
 
     /* Set which page the target map should show, by specifying the first
      * target in the map. This must be 100 or a multiple of 1000. If it isn't,
-     * it will be rounded down to the nearest multiple of 1000. If it's
-     * negative it will be taken as 0. */
+     * it will be rounded down to the nearest multiple of 1000. If the start
+     * value is negative it will be taken as 0, and it is capped at
+     * TARGET_MAP_START_MAX. */
     setStart(start) {
         if (start < 0) {
             start = 0;
         }
         if (start != 100 && start % 1000 != 0) {
             start -= start % 1000;
+        }
+        if (start > TARGET_MAP_START_MAX) {
+            start = TARGET_MAP_START_MAX;
         }
         this.targetMapStart = start;
         /* Set target map end according to target map start */
@@ -208,6 +216,7 @@ class TargetMap {
         else {
             this.targetMapEnd = this.targetMapStart + 999;
         }
+        this.targetMapForwardButton.disabled = (this.targetMapStart >= TARGET_MAP_START_MAX);
         this.targetMapResetButton.disabled = (this.targetMapStart == DEFAULT_TARGET_MAP_START);
     }
 
