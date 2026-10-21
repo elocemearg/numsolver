@@ -1,7 +1,6 @@
 let solverIsRunning = false;
 let currentProblem = null;
 let currentResults = null;
-let defaultTargetMapHeadline = "";
 let solutionNotation = NOTATION_ALGEBRAIC;
 
 const targetRackRadius = 10;
@@ -242,7 +241,7 @@ function nearbyTargetClick(e) {
         return;
     }
     let newTarget = currentProblem.getTarget() + away;
-    if (newTarget < 0) {
+    if (newTarget <= 0) {
         return;
     }
     if (currentProblem) {
@@ -1080,7 +1079,8 @@ function setTargetRackSolutionCounts(problem, solutions) {
             targetCell.setAttribute("title", altText);
         }
         if (solutions == null || !problem.isInRackRange(otherTotal)) {
-            targetCell.removeAttribute("onclick");
+            targetCell.removeAttribute("data-away");
+            targetCell.removeEventListener("click", nearbyTargetClick);
             targetCell.style.cursor = null;
         }
         else {

@@ -3,6 +3,8 @@ const defaultTargetMapStart = 100;
 const defaultTargetMapEnd = 999;
 const defaultTargetMapRowLength = 25;
 
+/* Return a string to put in the mouseover text when the user hovers over a
+ * target in the target map. */
 function targetToAltText(target, solutionCount, haveAllSolutions) {
     let altText = target.toString();
     if (solutionCount !== null) {
@@ -31,26 +33,76 @@ function targetToAltText(target, solutionCount, haveAllSolutions) {
 }
 
 class TargetMap {
+    /* Constructor arguments
+     *
+     * tableElement: the <table> element containing the target map's cells.
+     * targetMapContainer: the element containing the <table> and the headline
+     *     along the top.
+     * solutionsOuterContainer: the element containing the solutions to the
+     *     currently-selected target. We don't want this visible at the same
+     *     time as the target map is visible, so we need a reference to this
+     *     element in order to undisplay it when the target map is showing.
+     * fullMapKey: the colour-to-solution-count key displayed below the
+     *     table when the solver finds all solutions.
+     * fastMapKey: the solved/not-solved key displayed below the table when
+     *     the solver finds only one solution per target. We need this and
+     *     fullMapKey so we can make the appropriate key visible.
+     * targetMapBackButton, targetMapResetButton, targetMapForwardButton:
+     *     the <button> elements for switching the target map to the previous
+     *     or next page, or resetting it to the default page. TargetMap does
+     *     not set up listeners for these buttons, that's the caller's problem.
+     *     We only need references to them so that we can disable them when
+     *     appropriate on a pagePrev(), pageNext() or pageHome() call.
+     * targetMapClickHandler: handler to attach to each target cell's onclick
+     *     event.
+     * targetMapMouseOverHandler: handler to attach to each target cell's
+     *     onmouseover event.
+     * targetMapMouseOutHandler: handler to attach to each target cell's
+     *     onmouseout event.
+     * buildSolutionDivFunction: function taking the parameters (solution,
+     *     target, showEquals, notation) which returns a <div> element
+     *     showing a solution in the form of a mathematical expression.
+     *     Parameters:
+     *       solution: an Expression object representing the solution.
+     *       target: the integer target.
+     *       showEquals (optional, default false): boolean specifying whether
+     *         to add "= <answer>" to the formatted expression.
+     *       notation (optional, default null): one of the NOTATION_ constants
+     *         in solver_engine.js. If null, the default configured notation.
+     */
     constructor(tableElement, targetMapContainer, solutionsOuterContainer,
             fullMapKey, fastMapKey, targetMapBackButton, targetMapResetButton,
             targetMapForwardButton, targetMapClickHandler,
             targetMapMouseOverHandler, targetMapMouseOutHandler,
             buildSolutionDivFunction) {
+        /* targetMapStart, targetMapEnd: current bounds of the target map */
         this.targetMapStart = defaultTargetMapStart;
         this.targetMapEnd = defaultTargetMapEnd;
+
+        /* Number of target cells per row */
         this.targetMapRowLength = defaultTargetMapRowLength;
+
+        /* Important HTML elements related to the target map */
         this.targetMapTable = tableElement;
         this.targetMapContainer = targetMapContainer;
         this.solutionsOuterContainer = solutionsOuterContainer;
+        this.fullMapKey = fullMapKey;
+        this.fastMapKey = fastMapKey;
+
+        /* Buttons */
         this.targetMapBackButton = targetMapBackButton;
         this.targetMapResetButton = targetMapResetButton;
         this.targetMapForwardButton = targetMapForwardButton;
+
+        /* Handlers */
         this.targetMapClickHandler = targetMapClickHandler;
         this.targetMapMouseOverHandler = targetMapMouseOverHandler;
         this.targetMapMouseOutHandler = targetMapMouseOutHandler;
+
+        /* Function to build a solution element to put on the headline when
+         * the user hovers their mouse over a target cell */
         this.buildSolutionDiv = buildSolutionDivFunction;
-        this.fullMapKey = fullMapKey;
-        this.fastMapKey = fastMapKey;
+
         this.targetMapHeadline = targetMapContainer.getElementsByClassName("headline")[0];
         if (this.targetMapHeadline) {
             this.headlineDivText = this.targetMapHeadline.getElementsByClassName("targetmapheadlinetext")[0];
@@ -62,6 +114,8 @@ class TargetMap {
             this.headlineDivSolution = null;
             this.headlineDivLink = null;
         }
+
+        /* Cells currently showing: key=target, value=<td> element */
         this.cells = {};
     }
 
@@ -123,6 +177,7 @@ class TargetMap {
         this.recreate();
     }
 
+    /* Return to the default target map page, 100-999. */
     pageHome() {
         this.targetMapStart = defaultTargetMapStart;
         this.targetMapEnd = defaultTargetMapEnd;
@@ -131,8 +186,11 @@ class TargetMap {
         this.recreate();
     }
 
+    /* Set which page the target map should show, by specifying the first
+     * target in the map. This must be 100 or a multiple of 1000. If it isn't,
+     * it will be rounded down to the nearest multiple of 1000. If it's
+     * negative it will be taken as 0. */
     setStart(start) {
-        /* map start must be 100 or a multiple of 1000 */
         if (start < 0) {
             start = 0;
         }
@@ -152,8 +210,9 @@ class TargetMap {
         }
     }
 
-    /* Empty the target map table and refill it with target cells according to
-     * the global variables targetMapStart and targetMapEnd. */
+    /* Empty the target map table and refill it with target cells according
+     * to the currently selected target map page. This populates the cells
+     * with their target numbers but does not colour them in yet. */
     recreate() {
         /* Remove anything already in the target map table */
         discardContents(this.targetMapTable);
@@ -187,6 +246,10 @@ class TargetMap {
         }
     }
 
+    /* Update the target map cells and colour-code them according to how many
+     * solutions there are for that target.
+     * problem is a NumbersProblem object (solver_desktop_interface.js).
+     * totalToExpressions is a map from targets to lists of Expressions. */
     updateAndDisplayTargetMap(problem, totalToExpressions) {
         let possibleTargets = 0;
         for (let target = this.targetMapStart; target <= this.targetMapEnd; ++target) {
@@ -220,8 +283,7 @@ class TargetMap {
             this.defaultTargetMapHeadline = `${possibleTargets} of the ${numTargets} targets from ${this.targetMapStart == 0 ? 1 : this.targetMapStart} to ${this.targetMapEnd} are possible with this selection.`;
         }
         this.setHeadline(null, null, null, totalToExpressions != null);
-        this.targetMapContainer.style.display = null;
-        this.solutionsOuterContainer.style.display = "none";
+        this.show();
 
         if (problem == null) {
             this.showTargetMapKey(false, false);
@@ -231,6 +293,10 @@ class TargetMap {
         }
     }
 
+    /* If we are showing the default target map page, return the empty
+     * string. Otherwise return "&mapstart=X", where X is the current
+     * targetMapStart, suitable for including as part of the URL query string.
+     */
     getQueryStringFragment() {
         if (this.targetMapStart != defaultTargetMapStart) {
             return "&mapstart=" + this.targetMapStart.toString();
@@ -304,5 +370,4 @@ class TargetMap {
         this.fullMapKey.style.display = (showFullKey ? "block" : "none");
         this.fastMapKey.style.display = (showFastKey ? "block" : "none");
     }
-
 }
