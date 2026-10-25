@@ -209,6 +209,8 @@ function targetMapClick(target) {
     }
 }
 
+/* Click handler for each individual cell on the grid of targets. The cell
+ * will have an attribute data-target, whose value is the target number. */
 function targetMapClickHandler(e) {
     let element = e.target;
     while (element != null && !element.hasAttribute("data-target")) {
@@ -223,6 +225,9 @@ function targetMapClickHandler(e) {
     }
 }
 
+/* Mouse-over handler for the cells on the target grid.
+ * This changes the text of the "headline" above the target map grid to show
+ * whether the target is reachable, and one solution if so. */
 function targetMapMouseOverHandler(e) {
     let element = e.target;
     while (element != null && !element.hasAttribute("data-target")) {
@@ -237,10 +242,16 @@ function targetMapMouseOverHandler(e) {
     }
 }
 
+/* Mouse-out handler for the cells on the target grid.
+ * Restore the target grid's headline back to the default. */
 function targetMapMouseOutHandler(e) {
     targetMap.setHeadline(null, currentProblem, currentResults, true);
 }
 
+/* When we're showing the solutions for a specific target, we have a ribbon
+ * of nearby targets along the top, for every target within 10 of the current
+ * target. This handler is called when the user clicks one of those nearby
+ * targets. */
 function nearbyTargetClick(e) {
     let element = e.target;
     while (element != null && !element.hasAttribute("data-away")) {
@@ -1288,7 +1299,9 @@ function outputPuzzleSolutions(results, problem) {
     }
 
     /* Show the headline, which is whether it's solvable, and how many best
-     * solutions there are. */
+     * solutions there are. Note this "headline" element is the one shown
+     * when a specific target has been entered, not the one shown above the
+     * "all-targets" grid when no target has been entered. */
     let headlineDiv = getActiveHeadlineDiv();
     if (problem.isAllSolutions() && target != null) {
         if (diff == 0) {
@@ -1759,7 +1772,6 @@ function initState() {
     });
 
     document.addEventListener("keyup", escapeListener);
-
 
     /* If we've been given a selection in the query string, because the user
      * has followed a link to a specific solve, start a solve of that selection
